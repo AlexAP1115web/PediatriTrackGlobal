@@ -11,6 +11,7 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.pediatritrack.global",
       "adaptiveIcon": {
         "backgroundColor": "#DFF5E8",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -39,6 +40,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "a1e69df1-5ecc-4e09-8b04-cbafa22a95e8"
+      }
+    },
+    "owner": "pediatritrack"
   }
 }
