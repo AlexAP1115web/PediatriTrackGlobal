@@ -51,15 +51,17 @@
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY || "";
 
-// uso el alias "gemini-flash-latest" en vez de un nombre de versión fija,
-// así Google se encarga de apuntarlo siempre al modelo flash gratuito más
-// reciente y no se rompe si retiran una versión vieja (ver
-// https://ai.google.dev/gemini-api/docs/models)
-const GEMINI_MODELO = "gemini-flash-latest";
+// el modelo ahora se elige desde el .env.local (EXPO_PUBLIC_GEMINI_MODEL),
+// igual que en MediCore. Antes tenía fijo el alias "gemini-flash-latest" y
+// con la llave nueva me regresaba error, mientras que gemini-3.5-flash-lite
+// sí funciona. Así, si Google retira un modelo, solo cambio el .env y ya
+// (lista de modelos: https://ai.google.dev/gemini-api/docs/models)
+const GEMINI_MODELO =
+  process.env.EXPO_PUBLIC_GEMINI_MODEL || "gemini-3.5-flash-lite";
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODELO}:generateContent`;
 
 // modelo económico de OpenAI, de aquí sale el respaldo cuando Gemini falla
-const OPENAI_MODELO = "gpt-4o-mini";
+const OPENAI_MODELO = process.env.EXPO_PUBLIC_OPENAI_MODEL || "gpt-4o-mini";
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 
 // aquí van las instrucciones fijas para que el chatbot se comporte como
@@ -92,14 +94,18 @@ function esperar(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// lo que regresa cada proveedor: el texto o, si falló, el código HTTP para
+// saber qué decirle al usuario
+type ResultadoIA = { texto: string | null; codigoError?: number };
+
 // --------------------------------------------------------------------------
-// Llama a Gemini. Regresa el texto de la respuesta, o null si falló (para
-// que el que llama decida si intenta con OpenAI o no)
+// Llama a Gemini. Regresa el texto de la respuesta, o texto null y el código
+// de error si falló (para que el que llama decida si intenta con OpenAI)
 // --------------------------------------------------------------------------
 async function preguntarGemini(
   historial: MensajeChat[],
   nuevoMensaje: string
-): Promise<string | null> {
+): Promise<ResultadoIA> {
   const contenidoHistorial = historial.map((mensaje) => ({
     role: mensaje.rol === "usuario" ? "user" : "model",
     parts: [{ text: mensaje.texto }],
@@ -117,34 +123,56 @@ async function preguntarGemini(
     },
   });
 
-  let respuesta = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
+  // la llave la mando en el header y no en la URL, así no aparece en los
+  // logs de red y funciona con las llaves nuevas de AI Studio
+  const opcionesPeticion = {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": GEMINI_API_KEY,
+    },
     body: cuerpoPeticion,
-  });
+  };
+
+  let respuesta = await fetch(GEMINI_URL, opcionesPeticion);
 
   // el plan gratuito a veces tiene un pico de tráfico (429) o un hiccup
   // pasajero del servidor (503). En vez de tronar de una vez, espero 2
   // segundos y lo intento una sola vez más antes de rendirme
   if (!respuesta.ok && (respuesta.status === 429 || respuesta.status === 503)) {
     await esperar(2000);
-    respuesta = await fetch(`${GEMINI_URL}?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: cuerpoPeticion,
-    });
+    respuesta = await fetch(GEMINI_URL, opcionesPeticion);
   }
 
   if (!respuesta.ok) {
     const textoError = await respuesta.text();
-    console.log("Error de la API de Gemini:", respuesta.status, textoError);
-    return null;
+    console.log(
+      `Error de la API de Gemini (modelo ${GEMINI_MODELO}):`,
+      respuesta.status,
+      textoError
+    );
+    return { texto: null, codigoError: respuesta.status };
   }
 
   const datos = await respuesta.json();
   const texto: string | undefined =
     datos?.candidates?.[0]?.content?.parts?.[0]?.text;
-  return texto?.trim() || null;
+  return { texto: texto?.trim() || null };
+}
+
+// según el error de Gemini le explico al usuario qué pasó, en vez de decir
+// siempre "muchos mensajes" aunque el problema sea otro
+function mensajeSegunError(codigo?: number): string {
+  if (codigo === 429) {
+    return "Estoy recibiendo muchos mensajes ahora mismo. Espera unos segundos e intenta de nuevo.";
+  }
+  if (codigo === 400 || codigo === 401 || codigo === 403) {
+    return "El asistente no está disponible por un problema con la llave de la API. Avísale al equipo de PediatriTrack.";
+  }
+  if (codigo === 404) {
+    return "El asistente no está disponible porque el modelo de IA configurado no existe. Avísale al equipo de PediatriTrack.";
+  }
+  return "El asistente no está disponible en este momento. Intenta de nuevo en unos minutos.";
 }
 
 // --------------------------------------------------------------------------
@@ -216,9 +244,12 @@ export async function preguntarAlChatbot(
   }
 
   try {
+    let codigoErrorGemini: number | undefined;
+
     if (GEMINI_API_KEY) {
       const respuestaGemini = await preguntarGemini(historial, nuevoMensaje);
-      if (respuestaGemini) return respuestaGemini;
+      if (respuestaGemini.texto) return respuestaGemini.texto;
+      codigoErrorGemini = respuestaGemini.codigoError;
       console.log("Gemini no respondió, intento con OpenAI como respaldo...");
     }
 
@@ -226,7 +257,7 @@ export async function preguntarAlChatbot(
     if (respuestaOpenAI) return respuestaOpenAI;
 
     // si llegamos aquí, ninguno de los dos pudo responder
-    return "Estoy recibiendo muchos mensajes ahora mismo o el asistente no está disponible. Espera unos segundos e intenta de nuevo.";
+    return mensajeSegunError(codigoErrorGemini);
   } catch (error) {
     console.log("Error al conectar con el chatbot:", error);
     return "Hubo un problema de conexión. Revisa tu internet e intenta de nuevo.";

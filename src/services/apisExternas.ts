@@ -16,6 +16,10 @@
 // se debe caer la app por culpa de una API externa caída.
 // ==========================================================================
 
+// llave opcional de openFDA (va en el .env.local). Sin llave funciona igual,
+// con llave solo sube el límite de consultas por día
+const OPENFDA_API_KEY = process.env.EXPO_PUBLIC_OPENFDA_API_KEY || "";
+
 export type InfoMedicamentoOpenFDA = {
   nombreEncontrado: string;
   indicaciones?: string;
@@ -46,7 +50,8 @@ export async function buscarInfoMedicamentoOpenFDA(
   const intentarBusqueda = async (campo: "brand_name" | "generic_name") => {
     const url =
       "https://api.fda.gov/drug/label.json?search=" +
-      `openfda.${campo}:"${encodeURIComponent(nombreLimpio)}"&limit=1`;
+      `openfda.${campo}:"${encodeURIComponent(nombreLimpio)}"&limit=1` +
+      (OPENFDA_API_KEY ? `&api_key=${OPENFDA_API_KEY}` : "");
 
     const respuesta = await fetch(url);
     if (!respuesta.ok) return null;
