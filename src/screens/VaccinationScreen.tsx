@@ -6,6 +6,7 @@ import {
   View,
 } from "react-native";
 
+import AyudaModulo from "../components/AyudaModulo";
 import BottomNav from "../components/BottomNav";
 import { auth } from "../firebase/firebaseConfig";
 import {
@@ -24,6 +25,7 @@ import {
 } from "../firebase/firebaseService";
 import { globalStyles } from "../styles/globalStyles";
 import { Alert } from "../utils/alerta";
+import { textoEstado } from "../utils/estados";
 
 type Props = {
   onGo: (screen: string) => void;
@@ -545,13 +547,20 @@ export default function VaccinationScreen({ onGo }: Props) {
         "Chatea con nuestro asistente pediátrico sobre dudas generales.",
       ruta: "chatbot",
     },
+    {
+      id: 7,
+      icono: "♿",
+      titulo: "Accesibilidad",
+      descripcion: "Modo daltonismo y texto más grande.",
+      ruta: "accesibilidad",
+    },
   ];
 
   const obtenerEstiloIconoModulo = (ruta: string) => {
     if (ruta === "vitaminas") return globalStyles.moduleIconBoxWarning;
     if (ruta === "alimentacion") return globalStyles.moduleIconBoxGreen;
     if (ruta === "chatbot") return globalStyles.moduleIconBoxGreen;
-    if (ruta === "info" || ruta === "privacidad")
+    if (ruta === "info" || ruta === "privacidad" || ruta === "accesibilidad")
       return globalStyles.moduleIconBoxMuted;
     return globalStyles.moduleIconBox;
   };
@@ -626,7 +635,7 @@ export default function VaccinationScreen({ onGo }: Props) {
         </View>
 
         <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title}>💉 Sistema de Vacunación</Text>
+          <Text style={globalStyles.title} accessibilityRole="header">💉 Sistema de Vacunación</Text>
 
           <Text style={globalStyles.subtitle}>
             Seguimiento pediátrico del esquema de vacunación de México o
@@ -634,12 +643,16 @@ export default function VaccinationScreen({ onGo }: Props) {
           </Text>
         </View>
 
-        <Text style={globalStyles.sectionTitle}>
+        {/* ayuda con IA: explica cómo funciona este módulo */}
+        <AyudaModulo modulo="vacunas" />
+
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           Seleccionar esquema de vacunación
         </Text>
 
         <View style={globalStyles.countryContainer}>
           <TouchableOpacity
+            accessibilityRole="button"
             style={[
               globalStyles.countryButton,
               paisSeleccionado === "México" && globalStyles.countryActive,
@@ -650,6 +663,7 @@ export default function VaccinationScreen({ onGo }: Props) {
           </TouchableOpacity>
 
           <TouchableOpacity
+            accessibilityRole="button"
             style={[
               globalStyles.countryButton,
               paisSeleccionado === "Estados Unidos" &&
@@ -661,7 +675,7 @@ export default function VaccinationScreen({ onGo }: Props) {
           </TouchableOpacity>
         </View>
 
-        <Text style={globalStyles.sectionTitle}>Información clínica</Text>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">Información clínica</Text>
 
         <View style={globalStyles.moduleCard}>
           <View style={globalStyles.moduleIconBox}>
@@ -731,7 +745,7 @@ export default function VaccinationScreen({ onGo }: Props) {
           </View>
         </View>
 
-        <Text style={globalStyles.sectionTitle}>Próxima vacuna</Text>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">Próxima vacuna</Text>
 
         <View style={globalStyles.nextVaccineCard}>
           {proximaVacuna ? (
@@ -763,6 +777,7 @@ export default function VaccinationScreen({ onGo }: Props) {
               </Text>
 
               <TouchableOpacity
+                accessibilityRole="button"
                 style={[
                   globalStyles.scheduleButton,
                   { marginTop: 14 },
@@ -800,7 +815,7 @@ export default function VaccinationScreen({ onGo }: Props) {
           )}
         </View>
 
-        <Text style={globalStyles.sectionTitle}>Esquema de vacunación</Text>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">Esquema de vacunación</Text>
 
         <View style={globalStyles.tableCard}>
           <View style={globalStyles.tableHeader}>
@@ -843,9 +858,11 @@ export default function VaccinationScreen({ onGo }: Props) {
                     globalStyles.statusBadge,
                     getStatusStyle(obtenerEstadoVisual(vacuna)),
                   ]}
+                  accessible
+                  accessibilityLabel={`Estado: ${obtenerEstadoVisual(vacuna)}`}
                 >
                   <Text style={globalStyles.statusText}>
-                    {obtenerEstadoVisual(vacuna)}
+                    {textoEstado(obtenerEstadoVisual(vacuna))}
                   </Text>
                 </View>
               </View>
@@ -853,7 +870,7 @@ export default function VaccinationScreen({ onGo }: Props) {
           ))}
         </View>
 
-        <Text style={globalStyles.sectionTitle}>Detalle de vacunas</Text>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">Detalle de vacunas</Text>
 
         {vacunas.map((vacuna) => {
           const estadoVisual = obtenerEstadoVisual(vacuna);
@@ -887,6 +904,8 @@ export default function VaccinationScreen({ onGo }: Props) {
                     </Text>
 
                     <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={`Desmarcar ${vacuna.nombre}, ${vacuna.dosis}`}
                       style={globalStyles.unmarkButton}
                       disabled={enProceso}
                       onPress={() => desmarcarAplicada(vacuna)}
@@ -898,6 +917,8 @@ export default function VaccinationScreen({ onGo }: Props) {
                   </>
                 ) : (
                   <TouchableOpacity
+                    accessibilityRole="button"
+                    accessibilityLabel={`Marcar ${vacuna.nombre}, ${vacuna.dosis}, como aplicada`}
                     style={globalStyles.applyButton}
                     disabled={enProceso}
                     onPress={() => marcarComoAplicada(vacuna)}
@@ -912,7 +933,7 @@ export default function VaccinationScreen({ onGo }: Props) {
           );
         })}
 
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           Historial de vacunas aplicadas
         </Text>
 
@@ -943,7 +964,7 @@ export default function VaccinationScreen({ onGo }: Props) {
           </View>
         ))}
 
-        <Text style={globalStyles.sectionTitle}>Resumen general</Text>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">Resumen general</Text>
 
         <View style={globalStyles.summaryRow}>
           <View style={globalStyles.summaryCard}>
@@ -962,7 +983,7 @@ export default function VaccinationScreen({ onGo }: Props) {
           </View>
         </View>
 
-        <Text style={globalStyles.sectionTitle}>Paneles principales</Text>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">Paneles principales</Text>
 
         {modulos.map((modulo) => (
           <TouchableOpacity
@@ -1014,10 +1035,11 @@ export default function VaccinationScreen({ onGo }: Props) {
       {selectorVisible && (
         <View style={globalStyles.modalOverlay}>
           <View style={globalStyles.modalSheet}>
-            <Text style={globalStyles.sectionTitle}>Cuenta y bebés</Text>
+            <Text style={globalStyles.sectionTitle} accessibilityRole="header">Cuenta y bebés</Text>
 
             {bebes.map((item) => (
               <TouchableOpacity
+                accessibilityRole="button"
                 key={item.id}
                 style={globalStyles.moduleCard}
                 disabled={cambiandoBebeId === item.id}
@@ -1044,6 +1066,7 @@ export default function VaccinationScreen({ onGo }: Props) {
             ))}
 
             <TouchableOpacity
+              accessibilityRole="button"
               style={globalStyles.buttonPrimary}
               onPress={irARegistrarBebe}
             >
@@ -1053,6 +1076,7 @@ export default function VaccinationScreen({ onGo }: Props) {
             </TouchableOpacity>
 
             <TouchableOpacity
+              accessibilityRole="button"
               style={[globalStyles.unmarkButton, { marginTop: 10 }]}
               onPress={cerrarSesion}
             >
@@ -1062,6 +1086,7 @@ export default function VaccinationScreen({ onGo }: Props) {
             </TouchableOpacity>
 
             <TouchableOpacity
+              accessibilityRole="button"
               onPress={() => {
                 setSelectorVisible(false);
                 onGo("privacidad");
@@ -1072,7 +1097,17 @@ export default function VaccinationScreen({ onGo }: Props) {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => setSelectorVisible(false)}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() => {
+                setSelectorVisible(false);
+                onGo("accesibilidad");
+              }}
+            >
+              <Text style={globalStyles.modalCancelText}>♿ Accesibilidad</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity accessibilityRole="button" onPress={() => setSelectorVisible(false)}>
               <Text style={globalStyles.modalCancelText}>Cancelar</Text>
             </TouchableOpacity>
           </View>

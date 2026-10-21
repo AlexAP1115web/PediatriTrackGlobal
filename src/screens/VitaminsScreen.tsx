@@ -7,6 +7,7 @@ import {
   View,
 } from "react-native";
 
+import AyudaModulo from "../components/AyudaModulo";
 import BottomNav from "../components/BottomNav";
 import {
   actualizarVitaminaFirebase,
@@ -22,6 +23,7 @@ import {
 } from "../services/apisExternas";
 import { globalStyles } from "../styles/globalStyles";
 import { Alert } from "../utils/alerta";
+import { textoEstado } from "../utils/estados";
 
 type Props = {
   onGo: (screen: string) => void;
@@ -325,13 +327,16 @@ export default function VitaminsScreen({ onGo }: Props) {
         showsVerticalScrollIndicator={false}
       >
         <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title}>💊 Vitaminación</Text>
+          <Text style={globalStyles.title} accessibilityRole="header">💊 Vitaminación</Text>
 
           <Text style={globalStyles.subtitle}>
             Panel para registrar vitaminas, dosis, frecuencia y duración,
             con recordatorios de tomas pendientes y completadas.
           </Text>
         </View>
+
+        {/* ayuda con IA: explica cómo funciona este módulo */}
+        <AyudaModulo modulo="vitaminas" />
 
         <View style={globalStyles.summaryRow}>
           <View style={globalStyles.summaryCard}>
@@ -351,7 +356,7 @@ export default function VitaminsScreen({ onGo }: Props) {
         </View>
 
         <View style={globalStyles.formCard}>
-          <Text style={globalStyles.sectionTitle}>
+          <Text style={globalStyles.sectionTitle} accessibilityRole="header">
             {editandoId
               ? "Editar suplemento o vitamina"
               : "Registrar suplemento o vitamina"}
@@ -379,6 +384,7 @@ export default function VitaminsScreen({ onGo }: Props) {
 
           <View style={globalStyles.optionRow}>
             <TouchableOpacity
+              accessibilityRole="button"
               style={[
                 globalStyles.optionButton,
                 frecuencia === "Diario" && globalStyles.optionActive,
@@ -396,6 +402,7 @@ export default function VitaminsScreen({ onGo }: Props) {
             </TouchableOpacity>
 
             <TouchableOpacity
+              accessibilityRole="button"
               style={[
                 globalStyles.optionButton,
                 frecuencia === "Cada 2 días" && globalStyles.optionActive,
@@ -416,6 +423,7 @@ export default function VitaminsScreen({ onGo }: Props) {
 
           <View style={globalStyles.optionRow}>
             <TouchableOpacity
+              accessibilityRole="button"
               style={[
                 globalStyles.optionButton,
                 frecuencia === "Semanal" && globalStyles.optionActive,
@@ -433,6 +441,7 @@ export default function VitaminsScreen({ onGo }: Props) {
             </TouchableOpacity>
 
             <TouchableOpacity
+              accessibilityRole="button"
               style={[
                 globalStyles.optionButton,
                 frecuencia === "Indicación médica" &&
@@ -479,6 +488,7 @@ export default function VitaminsScreen({ onGo }: Props) {
           </View>
 
           <TouchableOpacity
+            accessibilityRole="button"
             style={globalStyles.buttonGreen}
             onPress={guardarVitamina}
             disabled={guardando}
@@ -494,6 +504,7 @@ export default function VitaminsScreen({ onGo }: Props) {
 
           {editandoId && (
             <TouchableOpacity
+              accessibilityRole="button"
               style={[globalStyles.unmarkButton, { marginTop: 10 }]}
               onPress={limpiarFormulario}
             >
@@ -504,7 +515,7 @@ export default function VitaminsScreen({ onGo }: Props) {
           )}
         </View>
 
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           Vitaminas registradas
         </Text>
 
@@ -546,9 +557,11 @@ export default function VitaminsScreen({ onGo }: Props) {
                     globalStyles.statusBadge,
                     obtenerEstiloEstado(estadoRecordatorio),
                   ]}
+                  accessible
+                  accessibilityLabel={`Estado del recordatorio: ${estadoRecordatorio}`}
                 >
                   <Text style={globalStyles.statusText}>
-                    {estadoRecordatorio}
+                    {textoEstado(estadoRecordatorio)}
                   </Text>
                 </View>
               </View>
@@ -569,6 +582,7 @@ export default function VitaminsScreen({ onGo }: Props) {
 
               <View style={globalStyles.documentActions}>
                 <TouchableOpacity
+                  accessibilityRole="button"
                   style={globalStyles.applyButton}
                   disabled={enProceso}
                   onPress={() => registrarToma(item)}
@@ -581,6 +595,7 @@ export default function VitaminsScreen({ onGo }: Props) {
 
               <View style={globalStyles.documentActions}>
                 <TouchableOpacity
+                  accessibilityRole="button"
                   style={globalStyles.viewButton}
                   disabled={consultandoId === item.id}
                   onPress={() => consultarInformacionOficial(item)}
@@ -595,6 +610,7 @@ export default function VitaminsScreen({ onGo }: Props) {
 
               <View style={globalStyles.documentActions}>
                 <TouchableOpacity
+                  accessibilityRole="button"
                   style={globalStyles.viewButton}
                   onPress={() => iniciarEdicion(item)}
                 >
@@ -602,6 +618,7 @@ export default function VitaminsScreen({ onGo }: Props) {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  accessibilityRole="button"
                   style={globalStyles.deleteButton}
                   disabled={enProceso}
                   onPress={() => confirmarEliminar(item)}

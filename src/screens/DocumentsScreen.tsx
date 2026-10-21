@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 
+import AyudaModulo from "../components/AyudaModulo";
 import BottomNav from "../components/BottomNav";
 import {
   actualizarDocumentoFirebase,
@@ -277,13 +278,16 @@ export default function DocumentsScreen({ onGo }: Props) {
         showsVerticalScrollIndicator={false}
       >
         <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title}>📄 Documentos</Text>
+          <Text style={globalStyles.title} accessibilityRole="header">📄 Documentos</Text>
 
           <Text style={globalStyles.subtitle}>
             Administra acta de nacimiento, cartilla de salud, estudios,
             consultas, recetas y documentos médicos importantes del bebé.
           </Text>
         </View>
+
+        {/* ayuda con IA: explica cómo funciona este módulo */}
+        <AyudaModulo modulo="documentos" />
 
         <View style={globalStyles.summaryRow}>
           <View style={globalStyles.summaryCard}>
@@ -307,7 +311,7 @@ export default function DocumentsScreen({ onGo }: Props) {
         </View>
 
         <View style={globalStyles.formCard}>
-          <Text style={globalStyles.sectionTitle}>
+          <Text style={globalStyles.sectionTitle} accessibilityRole="header">
             Registrar documento médico
           </Text>
 
@@ -316,6 +320,7 @@ export default function DocumentsScreen({ onGo }: Props) {
           <View style={globalStyles.typesContainer}>
             {tiposDocumento.map((item) => (
               <TouchableOpacity
+                accessibilityRole="button"
                 key={item}
                 style={[
                   globalStyles.typeButton,
@@ -356,6 +361,7 @@ export default function DocumentsScreen({ onGo }: Props) {
           <Text style={globalStyles.label}>Archivo PDF</Text>
 
           <TouchableOpacity
+            accessibilityRole="button"
             style={globalStyles.viewButton}
             onPress={seleccionarArchivo}
           >
@@ -385,6 +391,7 @@ export default function DocumentsScreen({ onGo }: Props) {
           />
 
           <TouchableOpacity
+            accessibilityRole="button"
             style={globalStyles.buttonPrimary}
             onPress={guardarDocumento}
             disabled={guardando}
@@ -399,7 +406,7 @@ export default function DocumentsScreen({ onGo }: Props) {
           </TouchableOpacity>
         </View>
 
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           Categorías principales
         </Text>
 
@@ -437,7 +444,7 @@ export default function DocumentsScreen({ onGo }: Props) {
           </View>
         </View>
 
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           Documentos registrados
         </Text>
 
@@ -476,9 +483,13 @@ export default function DocumentsScreen({ onGo }: Props) {
                   </Text>
                 </View>
 
-                <View style={globalStyles.statusBadgeGreen}>
+                <View
+                  style={globalStyles.statusBadgeGreen}
+                  accessible
+                  accessibilityLabel={`Estado: ${doc.estado}`}
+                >
                   <Text style={globalStyles.statusTextGreen}>
-                    {doc.estado}
+                    ✓ {doc.estado}
                   </Text>
                 </View>
               </View>
@@ -494,6 +505,7 @@ export default function DocumentsScreen({ onGo }: Props) {
 
               <View style={globalStyles.documentActions}>
                 <TouchableOpacity
+                  accessibilityRole="button"
                   style={globalStyles.viewButton}
                   onPress={() => verPdf(doc)}
                 >
@@ -503,6 +515,7 @@ export default function DocumentsScreen({ onGo }: Props) {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  accessibilityRole="button"
                   style={globalStyles.deleteButton}
                   disabled={enProceso}
                   onPress={() => confirmarEliminar(doc)}
@@ -515,6 +528,7 @@ export default function DocumentsScreen({ onGo }: Props) {
 
               <View style={globalStyles.documentActions}>
                 <TouchableOpacity
+                  accessibilityRole="button"
                   style={globalStyles.viewButton}
                   onPress={() => compartirDocumento(doc)}
                 >
@@ -524,6 +538,7 @@ export default function DocumentsScreen({ onGo }: Props) {
                 </TouchableOpacity>
 
                 <TouchableOpacity
+                  accessibilityRole="button"
                   style={globalStyles.viewButton}
                   disabled={enProceso}
                   onPress={() => actualizarPdf(doc)}

@@ -79,7 +79,7 @@ export default function BabyRegisterScreen({ onGo }: Props) {
       >
         {/* encabezado principal */}
         <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title}>
+          <Text style={globalStyles.title} accessibilityRole="header">
             👶 Registro del Bebé
           </Text>
 
@@ -116,7 +116,7 @@ export default function BabyRegisterScreen({ onGo }: Props) {
 
         {/* formulario principal */}
         <View style={globalStyles.formCard}>
-          <Text style={globalStyles.sectionTitle}>
+          <Text style={globalStyles.sectionTitle} accessibilityRole="header">
             Perfil del tutor o padre
           </Text>
 
@@ -139,6 +139,7 @@ export default function BabyRegisterScreen({ onGo }: Props) {
           <View style={globalStyles.chipRow}>
             {PARENTESCOS.map((opcion) => (
               <TouchableOpacity
+                accessibilityRole="button"
                 key={opcion}
                 style={[
                   globalStyles.chipButton,
@@ -158,7 +159,7 @@ export default function BabyRegisterScreen({ onGo }: Props) {
             ))}
           </View>
 
-          <Text style={globalStyles.sectionTitle}>
+          <Text style={globalStyles.sectionTitle} accessibilityRole="header">
             Información general
           </Text>
 
@@ -204,6 +205,7 @@ export default function BabyRegisterScreen({ onGo }: Props) {
 
           <View style={globalStyles.countryContainer}>
             <TouchableOpacity
+              accessibilityRole="button"
               style={[
                 globalStyles.countryButton,
                 pais === "México" &&
@@ -217,6 +219,7 @@ export default function BabyRegisterScreen({ onGo }: Props) {
             </TouchableOpacity>
 
             <TouchableOpacity
+              accessibilityRole="button"
               style={[
                 globalStyles.countryButton,
                 pais === "Estados Unidos" &&
@@ -230,7 +233,7 @@ export default function BabyRegisterScreen({ onGo }: Props) {
             </TouchableOpacity>
           </View>
 
-          <Text style={globalStyles.sectionTitle}>
+          <Text style={globalStyles.sectionTitle} accessibilityRole="header">
             Salud y alimentación
           </Text>
 
@@ -274,6 +277,7 @@ export default function BabyRegisterScreen({ onGo }: Props) {
           />
 
           <TouchableOpacity
+            accessibilityRole="button"
             style={globalStyles.buttonPrimary}
             onPress={finalizarRegistro}
           >
@@ -312,4 +316,4 @@ export default function BabyRegisterScreen({ onGo }: Props) {
       </ScrollView>
     </View>
   );
-}
+}

@@ -15,7 +15,7 @@ export default function PrivacyPolicyScreen({ onGo }: Props) {
       >
         {/* encabezado */}
         <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title}>🔒 Política de Privacidad</Text>
+          <Text style={globalStyles.title} accessibilityRole="header">🔒 Política de Privacidad</Text>
 
           <Text style={globalStyles.subtitle}>
             PediatriTrack Global protege la información de tu bebé y de tu
@@ -25,7 +25,7 @@ export default function PrivacyPolicyScreen({ onGo }: Props) {
         </View>
 
         {/* datos que recopilamos */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           📋 Datos que recopilamos
         </Text>
 
@@ -46,7 +46,7 @@ export default function PrivacyPolicyScreen({ onGo }: Props) {
         </View>
 
         {/* cómo usamos los datos */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           ⚙️ Cómo usamos tus datos
         </Text>
 
@@ -62,13 +62,19 @@ export default function PrivacyPolicyScreen({ onGo }: Props) {
             {"\n"}• Generar el resumen y las estadísticas del dashboard.
             {"\n"}• Permitir que abras, compartas o actualices tus
             documentos guardados.
+            {"\n"}• Responder en el asistente virtual y en la ayuda de cada
+            módulo: lo que escribes, la edad y las alergias del bebé (no su
+            nombre) y las fotos de medicamentos se envían a Google Gemini
+            para generar la respuesta.
+            {"\n"}• Tu historial de consultas y tus opciones de accesibilidad
+            se guardan solo en este dispositivo.
             {"\n"}No usamos tus datos con fines publicitarios ni los
             vendemos a terceros.
           </Text>
         </View>
 
         {/* dónde se guardan los datos */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           ☁️ Dónde se almacenan tus datos
         </Text>
 
@@ -88,7 +94,7 @@ export default function PrivacyPolicyScreen({ onGo }: Props) {
         </View>
 
         {/* seguridad */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           🛡️ Cómo protegemos tu información
         </Text>
 
@@ -109,7 +115,7 @@ export default function PrivacyPolicyScreen({ onGo }: Props) {
         </View>
 
         {/* menores de edad */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           👶 Datos de menores de edad
         </Text>
 
@@ -128,7 +134,7 @@ export default function PrivacyPolicyScreen({ onGo }: Props) {
         </View>
 
         {/* derechos del usuario */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           ✅ Tus derechos
         </Text>
 
@@ -148,7 +154,7 @@ export default function PrivacyPolicyScreen({ onGo }: Props) {
         </View>
 
         {/* contacto */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           ✉️ Contacto
         </Text>
 

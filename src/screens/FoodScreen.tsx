@@ -7,6 +7,7 @@ import {
   View,
 } from "react-native";
 
+import AyudaModulo from "../components/AyudaModulo";
 import BottomNav from "../components/BottomNav";
 import {
   AlimentoFirebase,
@@ -289,13 +290,16 @@ export default function FoodScreen({ onGo }: Props) {
         showsVerticalScrollIndicator={false}
       >
         <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title}>🍎 Alimentación Complementaria</Text>
+          <Text style={globalStyles.title} accessibilityRole="header">🍎 Alimentación Complementaria</Text>
 
           <Text style={globalStyles.subtitle}>
             Panel para registrar alimentos por edad, textura y alergias
             alimentarias del bebé.
           </Text>
         </View>
+
+        {/* ayuda con IA: explica cómo funciona este módulo */}
+        <AyudaModulo modulo="alimentacion" />
 
         <View style={globalStyles.summaryRow}>
           <View style={globalStyles.summaryCard}>
@@ -320,13 +324,14 @@ export default function FoodScreen({ onGo }: Props) {
         </View>
 
         <View style={globalStyles.formCard}>
-          <Text style={globalStyles.sectionTitle}>Registrar alimento</Text>
+          <Text style={globalStyles.sectionTitle} accessibilityRole="header">Registrar alimento</Text>
 
           <Text style={globalStyles.label}>Edad / mes recomendado</Text>
 
           <View style={globalStyles.typesContainer}>
             {meses.map((item) => (
               <TouchableOpacity
+                accessibilityRole="button"
                 key={item}
                 style={[
                   globalStyles.typeButton,
@@ -360,6 +365,7 @@ export default function FoodScreen({ onGo }: Props) {
           <View style={globalStyles.typesContainer}>
             {categorias.map((item) => (
               <TouchableOpacity
+                accessibilityRole="button"
                 key={item}
                 style={[
                   globalStyles.typeButton,
@@ -384,6 +390,7 @@ export default function FoodScreen({ onGo }: Props) {
           <View style={globalStyles.typesContainer}>
             {texturas.map((item) => (
               <TouchableOpacity
+                accessibilityRole="button"
                 key={item}
                 style={[
                   globalStyles.typeButton,
@@ -407,6 +414,7 @@ export default function FoodScreen({ onGo }: Props) {
 
           <View style={globalStyles.optionRow}>
             <TouchableOpacity
+              accessibilityRole="button"
               style={[
                 globalStyles.optionButton,
                 !esAlergeno && globalStyles.optionActive,
@@ -424,6 +432,7 @@ export default function FoodScreen({ onGo }: Props) {
             </TouchableOpacity>
 
             <TouchableOpacity
+              accessibilityRole="button"
               style={[
                 globalStyles.optionButton,
                 esAlergeno && globalStyles.optionActive,
@@ -452,6 +461,7 @@ export default function FoodScreen({ onGo }: Props) {
           />
 
           <TouchableOpacity
+            accessibilityRole="button"
             style={globalStyles.buttonGreen}
             onPress={guardarAlimento}
           >
@@ -459,7 +469,7 @@ export default function FoodScreen({ onGo }: Props) {
           </TouchableOpacity>
         </View>
 
-        <Text style={globalStyles.sectionTitle}>Guía por meses</Text>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">Guía por meses</Text>
 
         {alimentosSugeridos.map((item) => (
           <View key={item.mes} style={globalStyles.foodCard}>
@@ -471,7 +481,7 @@ export default function FoodScreen({ onGo }: Props) {
           </View>
         ))}
 
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           Recetas recomendadas • {mes}
         </Text>
 
@@ -520,7 +530,7 @@ export default function FoodScreen({ onGo }: Props) {
           </View>
         )}
 
-        <Text style={globalStyles.sectionTitle}>Alimentos registrados</Text>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">Alimentos registrados</Text>
 
         {alimentos.length === 0 && (
           <View style={globalStyles.helpCard}>

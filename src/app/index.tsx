@@ -8,6 +8,11 @@ import {
   cerrarSesionFirebase,
   obtenerUltimoBebeFirebase,
 } from "../firebase/firebaseService";
+import {
+  AccesibilidadProvider,
+  useAccesibilidad,
+} from "../context/AccesibilidadContext";
+import AccesibilidadScreen from "../screens/AccesibilidadScreen";
 import BabyRegisterScreen from "../screens/BabyRegisterScreen";
 import ChatbotScreen from "../screens/ChatbotScreen";
 import DocumentsScreen from "../screens/DocumentsScreen";
@@ -28,13 +33,25 @@ type ScreenName =
   | "alimentacion"
   | "info"
   | "privacidad"
-  | "chatbot";
+  | "chatbot"
+  | "accesibilidad";
 
 // tiempo máximo que dejo la sesión inactiva antes de cerrarla sola (por seguridad)
 const TIEMPO_MAXIMO_INACTIVIDAD_MS = 30 * 60 * 1000; // 30 minutos
 const INTERVALO_REVISION_MS = 30 * 1000; // reviso cada 30 segundos si ya se pasó
 
+// envuelvo toda la app en el provider de accesibilidad para que el modo
+// daltonismo y el texto grande apliquen en todas las pantallas
 export default function Index() {
+  return (
+    <AccesibilidadProvider>
+      <PantallasApp />
+    </AccesibilidadProvider>
+  );
+}
+
+function PantallasApp() {
+  const { versionTema } = useAccesibilidad();
   const [pantalla, setPantalla] = useState<ScreenName>("login");
   const [verificando, setVerificando] = useState(true);
   const ultimaActividadRef = useRef<number>(Date.now());
@@ -157,6 +174,10 @@ export default function Index() {
       return <ChatbotScreen onGo={navegar} />;
     }
 
+    if (pantalla === "accesibilidad") {
+      return <AccesibilidadScreen onGo={navegar} />;
+    }
+
     return <LoginScreen onLogin={alIniciarSesion} />;
   };
 
@@ -164,7 +185,14 @@ export default function Index() {
   // reinicio el temporizador de inactividad sin tener que meterle el
   // mismo código a cada pantalla por separado
   return (
-    <View style={{ flex: 1 }} onTouchStart={registrarActividad}>
+    // el key con versionTema hace que la pantalla se vuelva a dibujar
+    // cuando cambian los colores o el tamaño de letra (sin perder en qué
+    // pantalla estaba el usuario)
+    <View
+      key={versionTema}
+      style={{ flex: 1 }}
+      onTouchStart={registrarActividad}
+    >
       {renderizarPantallaActual()}
     </View>
   );

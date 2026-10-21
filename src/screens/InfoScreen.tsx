@@ -1,4 +1,5 @@
 import { ScrollView, Text, View } from "react-native";
+import AyudaModulo from "../components/AyudaModulo";
 import BottomNav from "../components/BottomNav";
 import { globalStyles } from "../styles/globalStyles";
 
@@ -15,7 +16,7 @@ export default function InfoScreen({ onGo }: Props) {
       >
         {/* encabezado */}
         <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title}>
+          <Text style={globalStyles.title} accessibilityRole="header">
             ℹ️ Información Pediátrica
           </Text>
 
@@ -25,8 +26,11 @@ export default function InfoScreen({ onGo }: Props) {
           </Text>
         </View>
 
+        {/* ayuda con IA: explica cómo funciona este módulo */}
+        <AyudaModulo modulo="info" />
+
         {/* Atragantamiento */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           🚨 ¿Qué hacer si mi bebé se atraganta?
         </Text>
 
@@ -45,7 +49,7 @@ export default function InfoScreen({ onGo }: Props) {
         </View>
 
         {/* Esterimar */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           👃 Esterimar Pediátrico
         </Text>
 
@@ -62,7 +66,7 @@ export default function InfoScreen({ onGo }: Props) {
         </View>
 
         {/* Vacunas */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           💉 Efectos secundarios comunes de las vacunas
         </Text>
 
@@ -81,7 +85,7 @@ export default function InfoScreen({ onGo }: Props) {
         </View>
 
         {/* Fiebre */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           🌡️ Fiebre en el bebé
         </Text>
 
@@ -113,7 +117,7 @@ export default function InfoScreen({ onGo }: Props) {
         </View>
 
         {/* Diarrea */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           💧 Diarrea e hidratación
         </Text>
 
@@ -144,7 +148,7 @@ export default function InfoScreen({ onGo }: Props) {
         </View>
 
         {/* Astringentes */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           🍌 Alimentos Astringentes
         </Text>
 
@@ -163,7 +167,7 @@ export default function InfoScreen({ onGo }: Props) {
         </View>
 
         {/* No astringentes */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           🥝 Alimentos No Astringentes
         </Text>
 
@@ -182,7 +186,7 @@ export default function InfoScreen({ onGo }: Props) {
         </View>
 
         {/* Signos de alarma */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           ⚠️ Signos de alarma
         </Text>
 
@@ -203,7 +207,7 @@ export default function InfoScreen({ onGo }: Props) {
         </View>
 
         {/* Urgencias */}
-        <Text style={globalStyles.sectionTitle}>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
           🚑 Urgencias: cuándo acudir de inmediato
         </Text>
 
@@ -245,4 +249,4 @@ export default function InfoScreen({ onGo }: Props) {
       />
     </View>
   );
-}
+}

@@ -48,6 +48,8 @@
 // pantalla).
 // ==========================================================================
 
+import { GUIAS_MODULOS, ModuloAyuda } from "../constants/guiasModulos";
+
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 const OPENAI_API_KEY = process.env.EXPO_PUBLIC_OPENAI_API_KEY || "";
 
@@ -89,6 +91,12 @@ export type MensajeChat = {
   texto: string;
 };
 
+// foto que se le manda a Gemini (la uso para leer la caja de un medicamento)
+export type ImagenParaIA = {
+  base64: string;
+  tipo: string; // por ejemplo "image/jpeg"
+};
+
 // pequeña pausa para el reintento automático de Gemini
 function esperar(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -102,24 +110,46 @@ type ResultadoIA = { texto: string | null; codigoError?: number };
 // Llama a Gemini. Regresa el texto de la respuesta, o texto null y el código
 // de error si falló (para que el que llama decida si intenta con OpenAI)
 // --------------------------------------------------------------------------
+// opciones extra para reutilizar la misma llamada a Gemini en el chatbot,
+// en la ayuda de cada módulo y en la lectura de fotos
+type OpcionesIA = {
+  instrucciones?: string;
+  imagen?: ImagenParaIA;
+  json?: boolean; // pedirle a Gemini que conteste en JSON
+  maxTokens?: number;
+};
+
 async function preguntarGemini(
   historial: MensajeChat[],
-  nuevoMensaje: string
+  nuevoMensaje: string,
+  opciones: OpcionesIA = {}
 ): Promise<ResultadoIA> {
+  const { instrucciones = INSTRUCCIONES_SISTEMA, imagen, json, maxTokens } =
+    opciones;
+
   const contenidoHistorial = historial.map((mensaje) => ({
     role: mensaje.rol === "usuario" ? "user" : "model",
     parts: [{ text: mensaje.texto }],
   }));
 
   const cuerpoPeticion = JSON.stringify({
-    systemInstruction: { parts: [{ text: INSTRUCCIONES_SISTEMA }] },
+    systemInstruction: { parts: [{ text: instrucciones }] },
     contents: [
       ...contenidoHistorial,
-      { role: "user", parts: [{ text: nuevoMensaje }] },
+      {
+        role: "user",
+        parts: imagen
+          ? [
+              { inline_data: { mime_type: imagen.tipo, data: imagen.base64 } },
+              { text: nuevoMensaje },
+            ]
+          : [{ text: nuevoMensaje }],
+      },
     ],
     generationConfig: {
       temperature: 0.4,
-      maxOutputTokens: 400,
+      maxOutputTokens: maxTokens || 400,
+      ...(json ? { responseMimeType: "application/json" } : {}),
     },
   });
 
@@ -181,7 +211,8 @@ function mensajeSegunError(codigo?: number): string {
 // --------------------------------------------------------------------------
 async function preguntarOpenAI(
   historial: MensajeChat[],
-  nuevoMensaje: string
+  nuevoMensaje: string,
+  instrucciones: string = INSTRUCCIONES_SISTEMA
 ): Promise<string | null> {
   if (!OPENAI_API_KEY) return null;
 
@@ -202,7 +233,7 @@ async function preguntarOpenAI(
         temperature: 0.4,
         max_tokens: 400,
         messages: [
-          { role: "system", content: INSTRUCCIONES_SISTEMA },
+          { role: "system", content: instrucciones },
           ...mensajesHistorial,
           { role: "user", content: nuevoMensaje },
         ],
@@ -224,6 +255,35 @@ async function preguntarOpenAI(
   }
 }
 
+// datos del bebé que le paso al chatbot para que personalice la respuesta.
+// El nombre NO se manda a Gemini, solo lo necesario (edad y alergias)
+export type ContextoBebe = {
+  edadMeses: number | null;
+  alergias: string;
+  alergiasAlimentarias: string;
+  condiciones: string;
+};
+
+function describirContexto(contexto?: ContextoBebe): string {
+  if (!contexto) return "";
+  const edad =
+    contexto.edadMeses === null ? "no registrada" : `${contexto.edadMeses} meses`;
+  return `
+
+Datos del bebé registrados por su tutor en la app (úsalos para adaptar la
+respuesta a su edad y SIEMPRE avisa primero si algo de lo que preguntan
+choca con sus alergias):
+- Edad: ${edad}
+- Alergias médicas: ${contexto.alergias || "Ninguna"}
+- Alergias alimentarias: ${contexto.alergiasAlimentarias || "Ninguna"}
+- Condiciones médicas: ${contexto.condiciones || "Ninguna"}`;
+}
+
+const SIN_LLAVES =
+  "El asistente todavía no está configurado. Falta agregar la llave " +
+  "gratuita de Gemini (o, de respaldo, una llave de OpenAI) en el " +
+  "archivo .env.local del proyecto.";
+
 // --------------------------------------------------------------------------
 // Función principal que uso desde la pantalla del chat: intenta Gemini
 // primero (es el que tengo configurado gratis) y, si falla, cae
@@ -233,27 +293,30 @@ async function preguntarOpenAI(
 // --------------------------------------------------------------------------
 export async function preguntarAlChatbot(
   historial: MensajeChat[],
-  nuevoMensaje: string
+  nuevoMensaje: string,
+  contexto?: ContextoBebe
 ): Promise<string> {
-  if (!GEMINI_API_KEY && !OPENAI_API_KEY) {
-    return (
-      "El asistente todavía no está configurado. Falta agregar la llave " +
-      "gratuita de Gemini (o, de respaldo, una llave de OpenAI) en el " +
-      "archivo .env.local del proyecto."
-    );
-  }
+  if (!GEMINI_API_KEY && !OPENAI_API_KEY) return SIN_LLAVES;
+
+  const instrucciones = INSTRUCCIONES_SISTEMA + describirContexto(contexto);
 
   try {
     let codigoErrorGemini: number | undefined;
 
     if (GEMINI_API_KEY) {
-      const respuestaGemini = await preguntarGemini(historial, nuevoMensaje);
+      const respuestaGemini = await preguntarGemini(historial, nuevoMensaje, {
+        instrucciones,
+      });
       if (respuestaGemini.texto) return respuestaGemini.texto;
       codigoErrorGemini = respuestaGemini.codigoError;
       console.log("Gemini no respondió, intento con OpenAI como respaldo...");
     }
 
-    const respuestaOpenAI = await preguntarOpenAI(historial, nuevoMensaje);
+    const respuestaOpenAI = await preguntarOpenAI(
+      historial,
+      nuevoMensaje,
+      instrucciones
+    );
     if (respuestaOpenAI) return respuestaOpenAI;
 
     // si llegamos aquí, ninguno de los dos pudo responder
@@ -261,5 +324,128 @@ export async function preguntarAlChatbot(
   } catch (error) {
     console.log("Error al conectar con el chatbot:", error);
     return "Hubo un problema de conexión. Revisa tu internet e intenta de nuevo.";
+  }
+}
+
+// --------------------------------------------------------------------------
+// Ayuda de cada módulo ("¿Cómo funciona?"). A Gemini le paso la guía del
+// módulo y le pido que la explique fácil, sin inventar. Si falla o no hay
+// internet, regreso la guía escrita tal cual para que nunca quede vacío
+// --------------------------------------------------------------------------
+export async function explicarModulo(
+  modulo: ModuloAyuda,
+  historial: MensajeChat[],
+  pregunta?: string
+): Promise<{ texto: string; deRespaldo: boolean }> {
+  const { titulo, guia } = GUIAS_MODULOS[modulo];
+
+  const instrucciones = `
+Eres la guía de uso de la app PediatriTrack Global y explicas el módulo
+"${titulo}". Esta es la ÚNICA información que tienes sobre el módulo:
+
+"""
+${guia}
+"""
+
+Reglas:
+1. Explica con palabras sencillas, como para alguien que casi no usa el
+   celular. Usa pasos cortos numerados.
+2. No inventes botones ni funciones que no estén en la información.
+3. Lenguaje inclusivo y respetuoso (mamá, papá o tutor). No te refieras a
+   las cosas solo por su color ("el botón verde"); di su nombre o ícono,
+   porque algunas personas tienen daltonismo.
+4. Si te preguntan algo médico, di que eso lo responde el Asistente Virtual
+   o su pediatra.
+5. Español de México, máximo unas 10 líneas.
+`.trim();
+
+  const mensaje =
+    pregunta?.trim() ||
+    `Explícame cómo funciona el módulo de ${titulo} y para qué me sirve.`;
+
+  const respaldo = pregunta
+    ? `No pude conectarme con la IA en este momento. Esto es lo que hace el módulo:\n\n${guia}`
+    : guia;
+
+  if (!GEMINI_API_KEY) return { texto: respaldo, deRespaldo: true };
+
+  try {
+    const resultado = await preguntarGemini(historial, mensaje, {
+      instrucciones,
+      maxTokens: 500,
+    });
+    if (resultado.texto) return { texto: resultado.texto, deRespaldo: false };
+  } catch (error) {
+    console.log("Error al explicar el módulo:", error);
+  }
+  return { texto: respaldo, deRespaldo: true };
+}
+
+// --------------------------------------------------------------------------
+// Lectura de la foto de un medicamento o vitamina. Gemini lee la caja y me
+// regresa un JSON; luego la pantalla lo cruza con las alergias del bebé
+// --------------------------------------------------------------------------
+export type LecturaMedicamento = {
+  esMedicamento: boolean;
+  nombre: string;
+  principioActivo: string;
+  principioActivoIngles: string; // para buscarlo en RxNorm (está en inglés)
+  paraQueSirve: string;
+  alertaAlergia: string; // vacío si no choca con ninguna alergia
+  aviso: string;
+};
+
+export async function leerFotoMedicamento(
+  imagen: ImagenParaIA,
+  contexto?: ContextoBebe
+): Promise<LecturaMedicamento | null> {
+  if (!GEMINI_API_KEY) return null;
+
+  const instrucciones = `
+Eres un lector de empaques de medicamentos para una app de padres de
+familia. Te mandan la foto de una caja, frasco o etiqueta. Contesta SOLO
+con un JSON con esta forma exacta:
+{"esMedicamento": true/false, "nombre": "", "principioActivo": "",
+ "principioActivoIngles": "", "paraQueSirve": "", "alertaAlergia": "",
+ "aviso": ""}
+
+Reglas:
+- "nombre": el nombre comercial que se lee en el empaque.
+- "principioActivo": la sustancia activa (o varias separadas por "+").
+- "principioActivoIngles": el mismo principio activo en inglés (ej.
+  "ibuprofen"), solo el primero si son varios.
+- "paraQueSirve": una frase corta y general de para qué se usa.
+- "alertaAlergia": si el principio activo o algún componente choca con las
+  alergias del bebé, explícalo en una frase; si no, déjalo vacío "".
+- "aviso": recuerda en una frase que la dosis la indica su pediatra.
+- NUNCA des dosis ni digas si se le puede dar al bebé.
+- Si la foto no es de un medicamento o no se lee, pon "esMedicamento": false
+  y explica en "aviso" qué pasó.
+- Español de México.${describirContexto(contexto)}
+`.trim();
+
+  try {
+    const resultado = await preguntarGemini(
+      [],
+      "Lee el empaque de esta foto.",
+      { instrucciones, imagen, json: true, maxTokens: 500 }
+    );
+    if (!resultado.texto) return null;
+
+    // por si Gemini manda el JSON envuelto en ```json ... ```
+    const limpio = resultado.texto.replace(/```json|```/g, "").trim();
+    const datos = JSON.parse(limpio);
+    return {
+      esMedicamento: !!datos.esMedicamento,
+      nombre: String(datos.nombre || ""),
+      principioActivo: String(datos.principioActivo || ""),
+      principioActivoIngles: String(datos.principioActivoIngles || ""),
+      paraQueSirve: String(datos.paraQueSirve || ""),
+      alertaAlergia: String(datos.alertaAlergia || ""),
+      aviso: String(datos.aviso || ""),
+    };
+  } catch (error) {
+    console.log("Error al leer la foto con Gemini:", error);
+    return null;
   }
 }

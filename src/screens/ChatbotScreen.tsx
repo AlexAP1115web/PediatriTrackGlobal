@@ -1,82 +1,516 @@
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Image,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 
-import { MensajeChat, preguntarAlChatbot } from "../services/chatbotService";
-import { globalStyles } from "../styles/globalStyles";
+import { auth } from "../firebase/firebaseConfig";
+import {
+  BebeFirebase,
+  obtenerBebesFirebase,
+  obtenerUltimoBebeFirebase,
+} from "../firebase/firebaseService";
+import {
+  ContextoBebe,
+  MensajeChat,
+  preguntarAlChatbot,
+} from "../services/chatbotService";
+import {
+  analizarFotoMedicamento,
+  tomarFotoMedicamento,
+} from "../services/fotoMedicamento";
+import { colors, globalStyles } from "../styles/globalStyles";
+import { Alert } from "../utils/alerta";
+import { calcularEdadEnMeses, formatearEdad } from "../utils/edad";
+import { guardarPreferencia, leerPreferencia } from "../utils/preferencias";
 
 type Props = {
   onGo: (screen: string) => void;
 };
 
-const MENSAJE_BIENVENIDA: MensajeChat = {
-  rol: "asistente",
-  texto:
-    "Hola, soy el Asistente Virtual de PediatriTrack Global. Puedo ayudarte con dudas generales sobre vacunación, vitaminas, alimentación y cuidados del bebé. No sustituyo a un pediatra: ante síntomas o urgencias, consulta siempre a un profesional de salud. ¿En qué te ayudo?",
+// en pantalla guardo también la foto (si el mensaje fue una foto)
+type MensajeUI = MensajeChat & { imagenUri?: string };
+
+type Consulta = {
+  pregunta: string;
+  respuesta: string;
+  fecha: string;
+  bebe: string;
+  esFoto?: boolean;
 };
 
-// nota mía: esta pantalla la armé distinto a las demás. Aquí uso un solo
-// View en columna con flex (header fijo arriba, el chat en flex:1 al
-// centro, la entrada fija abajo) en vez de meter todo en un ScrollView
-// como en las otras pantallas. Lo intenté con un ScrollView anidado
-// primero pero no jala bien en React Native (no se expande), así que
-// terminé dejando que solo el área de mensajes sea la que hace scroll.
+const MENSAJE_BIENVENIDA: MensajeUI = {
+  rol: "asistente",
+  texto:
+    "Hola, soy el Asistente Virtual de PediatriTrack Global. Pregúntame sobre vacunas, vitaminas, alimentación o cuidados y te respondo según la edad y las alergias del bebé. También puedes tomarle foto a la caja de un medicamento con 📷.\n\nNo sustituyo a un pediatra: ante síntomas o urgencias, consulta a un profesional de salud.",
+};
+
+const PREGUNTAS_SUGERIDAS = [
+  "¿Qué puede comer según su edad?",
+  "¿Qué hago si tiene fiebre?",
+  "Efectos de la próxima vacuna",
+  "¿Cómo introducir alimentos alergénicos?",
+  "Rutina de sueño para su edad",
+];
+
+const PASOS_COMO_RESPONDE = [
+  "Lee tu pregunta junto con la edad y las alergias del bebé que elegiste (su nombre no se envía).",
+  "Gemini responde en lenguaje claro y solo sobre cuidado infantil.",
+  "Si algo choca con sus alergias, te avisa primero.",
+  "Con 📷 lee la caja de un medicamento o vitamina, te dice qué es, lo cruza con sus alergias y confirma el nombre oficial en RxNorm.",
+];
+
+const MAX_CONSULTAS = 8;
+const CORREO_REPORTES = "alexpa.110215@gmail.com";
+
+function tieneAlergias(texto?: string): boolean {
+  const limpio = (texto || "").trim().toLowerCase();
+  return limpio !== "" && limpio !== "ninguna";
+}
+
+function fechaCorta(): string {
+  const hoy = new Date();
+  const dd = String(hoy.getDate()).padStart(2, "0");
+  const mm = String(hoy.getMonth() + 1).padStart(2, "0");
+  const hh = String(hoy.getHours()).padStart(2, "0");
+  const min = String(hoy.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm}/${hoy.getFullYear()} ${hh}:${min}`;
+}
+
+// abre el correo con la respuesta pegada para reportarla (lo pide la
+// política de Google Play para apps con IA)
+function reportarRespuesta(texto: string) {
+  const asunto = encodeURIComponent("Reporte de respuesta del asistente - PediatriTrack");
+  const cuerpo = encodeURIComponent(
+    "Quiero reportar esta respuesta del asistente:\n\n" + texto.slice(0, 1500)
+  );
+  Linking.openURL(`mailto:${CORREO_REPORTES}?subject=${asunto}&body=${cuerpo}`);
+}
+
+// nota mía: esta pantalla la armé distinto a las demás. Uso un View en
+// columna con flex (header arriba, el chat en flex:1 al centro, la entrada
+// abajo) en vez de meter todo en un ScrollView, porque un ScrollView
+// anidado no se expande bien en React Native. En pantallas anchas (web o
+// tablet) pongo a la derecha la columna de "Cómo responde" y el historial,
+// como en el asistente de MediCore
 export default function ChatbotScreen({ onGo }: Props) {
-  const [mensajes, setMensajes] = useState<MensajeChat[]>([MENSAJE_BIENVENIDA]);
+  const { width } = useWindowDimensions();
+  // mido el ancho real que tiene el chat (no el de la ventana), porque si
+  // no en web se ponían las dos columnas aunque no cupieran y todo se veía
+  // apretado
+  const [anchoDisponible, setAnchoDisponible] = useState(width);
+  const pantallaAncha = anchoDisponible >= 860;
+
+  const [mensajes, setMensajes] = useState<MensajeUI[]>([MENSAJE_BIENVENIDA]);
   const [textoEntrada, setTextoEntrada] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [bebes, setBebes] = useState<BebeFirebase[]>([]);
+  const [bebe, setBebe] = useState<BebeFirebase | null>(null);
+  const [consultas, setConsultas] = useState<Consulta[]>([]);
+  const [panel, setPanel] = useState<"ninguno" | "como" | "historial">("ninguno");
   const scrollRef = useRef<ScrollView>(null);
 
-  const enviarMensaje = async () => {
-    const texto = textoEntrada.trim();
+  const claveHistorial = `pediatritrack_consultas_${auth.currentUser?.uid || "anonimo"}`;
+
+  useEffect(() => {
+    cargarBebes();
+    cargarHistorial();
+  }, []);
+
+  const cargarBebes = async () => {
+    try {
+      const activo = await obtenerUltimoBebeFirebase();
+      setBebe(activo);
+      const lista = await obtenerBebesFirebase();
+      setBebes(lista.length > 0 ? lista : activo ? [activo] : []);
+    } catch (error) {
+      console.log("Error al cargar bebés en el chatbot:", error);
+    }
+  };
+
+  const cargarHistorial = async () => {
+    const guardado = await leerPreferencia(claveHistorial);
+    if (!guardado) return;
+    try {
+      setConsultas(JSON.parse(guardado));
+    } catch {
+      setConsultas([]);
+    }
+  };
+
+  const guardarConsulta = (consulta: Consulta) => {
+    setConsultas((anteriores) => {
+      const nuevas = [consulta, ...anteriores].slice(0, MAX_CONSULTAS);
+      guardarPreferencia(claveHistorial, JSON.stringify(nuevas));
+      return nuevas;
+    });
+  };
+
+  const edadMeses = useMemo(
+    () => calcularEdadEnMeses(bebe?.fechaNacimiento),
+    [bebe?.fechaNacimiento]
+  );
+
+  // lo que le mando a la IA del bebé elegido (sin el nombre)
+  const contexto: ContextoBebe | undefined = bebe
+    ? {
+        edadMeses,
+        alergias: bebe.alergias,
+        alergiasAlimentarias: bebe.alergiasAlimentarias,
+        condiciones: bebe.condiciones,
+      }
+    : undefined;
+
+  const hayAlergias =
+    tieneAlergias(bebe?.alergias) || tieneAlergias(bebe?.alergiasAlimentarias);
+
+  const bajarAlFinal = () =>
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+
+  const enviarMensaje = async (textoDirecto?: string) => {
+    const texto = (textoDirecto ?? textoEntrada).trim();
     if (!texto || enviando) return;
 
-    const historialPrevio = mensajes;
-    const mensajesConUsuario: MensajeChat[] = [
-      ...historialPrevio,
-      { rol: "usuario", texto },
-    ];
+    // el historial que mando a la IA no incluye el mensaje de bienvenida
+    const historialPrevio: MensajeChat[] = mensajes
+      .slice(1)
+      .map(({ rol, texto: t }) => ({ rol, texto: t }));
+    const conUsuario: MensajeUI[] = [...mensajes, { rol: "usuario", texto }];
 
-    setMensajes(mensajesConUsuario);
+    setMensajes(conUsuario);
     setTextoEntrada("");
     setEnviando(true);
+    bajarAlFinal();
 
     try {
-      const respuesta = await preguntarAlChatbot(historialPrevio, texto);
-      setMensajes([
-        ...mensajesConUsuario,
-        { rol: "asistente", texto: respuesta },
-      ]);
+      const respuesta = await preguntarAlChatbot(historialPrevio, texto, contexto);
+      setMensajes([...conUsuario, { rol: "asistente", texto: respuesta }]);
+      guardarConsulta({
+        pregunta: texto,
+        respuesta,
+        fecha: fechaCorta(),
+        bebe: bebe?.nombre || "",
+      });
     } catch (error) {
       console.log("Error inesperado del chatbot:", error);
       setMensajes([
-        ...mensajesConUsuario,
-        {
-          rol: "asistente",
-          texto: "Ocurrió un error inesperado. Intenta de nuevo en un momento.",
-        },
+        ...conUsuario,
+        { rol: "asistente", texto: "Ocurrió un error inesperado. Intenta de nuevo en un momento." },
       ]);
     } finally {
       setEnviando(false);
-      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+      bajarAlFinal();
     }
   };
+
+  const enviarFoto = async () => {
+    if (enviando) return;
+
+    let foto;
+    try {
+      foto = await tomarFotoMedicamento();
+    } catch (error: any) {
+      if (error?.message === "SIN_PERMISO_CAMARA") {
+        Alert.alert(
+          "Permiso de cámara",
+          "Para leer la caja del medicamento necesito permiso para usar la cámara. Puedes activarlo en los ajustes del celular."
+        );
+      } else {
+        console.log("Error al abrir la cámara:", error);
+        Alert.alert("Error", "No se pudo abrir la cámara.");
+      }
+      return;
+    }
+    if (!foto) return;
+
+    const conFoto: MensajeUI[] = [
+      ...mensajes,
+      { rol: "usuario", texto: "📷 Foto de un medicamento", imagenUri: foto.uri },
+    ];
+    setMensajes(conFoto);
+    setEnviando(true);
+    bajarAlFinal();
+
+    const resultado = await analizarFotoMedicamento(foto, contexto, bebe?.nombre);
+    setMensajes([...conFoto, { rol: "asistente", texto: resultado }]);
+    setEnviando(false);
+    bajarAlFinal();
+
+    guardarConsulta({
+      pregunta: `Foto: ${resultado.split("\n")[0].replace("📦 ", "")}`,
+      respuesta: resultado,
+      fecha: fechaCorta(),
+      bebe: bebe?.nombre || "",
+      esFoto: true,
+    });
+  };
+
+  const abrirConsulta = (consulta: Consulta) => {
+    setPanel("ninguno");
+    setMensajes((actuales) => [
+      ...actuales,
+      { rol: "usuario", texto: consulta.pregunta },
+      { rol: "asistente", texto: consulta.respuesta },
+    ]);
+    bajarAlFinal();
+  };
+
+  // ---------- piezas de la pantalla ----------
+
+  const tarjetaComoResponde = (
+    <View style={globalStyles.chatLateralCard}>
+      <Text style={globalStyles.chatLateralTitulo} accessibilityRole="header">
+        Cómo responde
+      </Text>
+      {PASOS_COMO_RESPONDE.map((paso, indice) => (
+        <View key={indice} style={globalStyles.chatPasoFila}>
+          <View style={globalStyles.chatPasoNumero}>
+            <Text style={globalStyles.chatPasoNumeroTexto}>{indice + 1}</Text>
+          </View>
+          <Text style={globalStyles.chatPasoTexto}>{paso}</Text>
+        </View>
+      ))}
+      <Text style={globalStyles.chatLateralNota}>
+        Es una herramienta de apoyo: no sustituye el criterio de su pediatra.
+        Ante síntomas de urgencia, acude de inmediato a urgencias.
+      </Text>
+    </View>
+  );
+
+  const tarjetaHistorial = (
+    <View style={globalStyles.chatLateralCard}>
+      <Text style={globalStyles.chatLateralTitulo} accessibilityRole="header">
+        Tus últimas consultas
+      </Text>
+      {consultas.length === 0 ? (
+        <Text style={globalStyles.chatPasoTexto}>
+          Todavía no tienes consultas. Se guardan solo en este dispositivo.
+        </Text>
+      ) : (
+        consultas.map((consulta, indice) => (
+          <TouchableOpacity
+            key={indice}
+            style={[
+              globalStyles.chatConsultaFila,
+              indice === consultas.length - 1 && { borderBottomWidth: 0 },
+            ]}
+            onPress={() => abrirConsulta(consulta)}
+            accessibilityRole="button"
+            accessibilityLabel={`Abrir consulta: ${consulta.pregunta}`}
+          >
+            <Text style={globalStyles.chatConsultaPregunta} numberOfLines={2}>
+              {consulta.pregunta}
+            </Text>
+            <Text style={globalStyles.chatConsultaDetalle}>
+              {consulta.fecha}
+              {consulta.bebe ? ` · ${consulta.bebe}` : ""}
+            </Text>
+          </TouchableOpacity>
+        ))
+      )}
+    </View>
+  );
+
+  const chat = (
+    <View style={[globalStyles.chatPrincipalCard, { flex: 1 }]}>
+      {/* bebé elegido y sus alergias, como el paciente en MediCore */}
+      <View style={globalStyles.chatContextoFila}>
+        <Text style={globalStyles.chatContextoEtiqueta}>Bebé</Text>
+        {/* los chips se acomodan en varias filas si no caben, así no se
+        esconde ningún bebé */}
+        <View style={globalStyles.chatBebesLista}>
+          {(bebes.length > 0 ? bebes : bebe ? [bebe] : []).map((item) => {
+            const elegido = item.id === bebe?.id;
+            return (
+              <TouchableOpacity
+                key={item.id || item.nombre}
+                style={[globalStyles.chipButton, elegido && globalStyles.chipButtonActive, { marginBottom: 6 }]}
+                onPress={() => setBebe(item)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: elegido }}
+                accessibilityLabel={`Usar los datos de ${item.nombre}`}
+              >
+                <Text style={[globalStyles.chipText, elegido && globalStyles.chipTextActive]}>
+                  {elegido ? "✓ " : ""}
+                  {item.nombre}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
+
+      {bebe && (
+        <View
+          style={[
+            globalStyles.chatAlergiaBanner,
+            hayAlergias ? globalStyles.chatAlergiaBannerAviso : globalStyles.chatAlergiaBannerOk,
+          ]}
+          accessible
+          accessibilityLabel={
+            hayAlergias
+              ? `Atención, ${bebe.nombre} tiene alergias registradas`
+              : `${bebe.nombre} no tiene alergias registradas`
+          }
+        >
+          <Text style={globalStyles.chatAlergiaTexto}>
+            {hayAlergias
+              ? `⚠ ${bebe.nombre} (${formatearEdad(edadMeses)}) tiene alergias registradas: ${[
+                  tieneAlergias(bebe.alergias) ? bebe.alergias : "",
+                  tieneAlergias(bebe.alergiasAlimentarias) ? bebe.alergiasAlimentarias : "",
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}`
+              : `✓ ${bebe.nombre} (${formatearEdad(edadMeses)}) no tiene alergias registradas.`}
+          </Text>
+        </View>
+      )}
+
+      {/* el historial del chat es el único ScrollView vertical */}
+      <ScrollView
+        ref={scrollRef}
+        style={globalStyles.chatMessagesArea}
+        contentContainerStyle={{ padding: 12 }}
+        showsVerticalScrollIndicator={false}
+        onContentSizeChange={bajarAlFinal}
+      >
+        {mensajes.map((mensaje, indice) => {
+          const esUsuario = mensaje.rol === "usuario";
+          return (
+            <View
+              key={indice}
+              style={[
+                globalStyles.chatBubbleRow,
+                esUsuario ? globalStyles.chatBubbleRowUsuario : globalStyles.chatBubbleRowAsistente,
+              ]}
+            >
+              <View
+                style={[
+                  globalStyles.chatBubble,
+                  esUsuario ? globalStyles.chatBubbleUsuario : globalStyles.chatBubbleAsistente,
+                ]}
+              >
+                {mensaje.imagenUri && (
+                  <Image
+                    source={{ uri: mensaje.imagenUri }}
+                    style={globalStyles.chatFoto}
+                    accessibilityLabel="Foto del medicamento que enviaste"
+                  />
+                )}
+                <Text
+                  style={esUsuario ? globalStyles.chatBubbleTextUsuario : globalStyles.chatBubbleTextAsistente}
+                >
+                  {mensaje.texto}
+                </Text>
+
+                {/* la bienvenida no es de la IA, esa no se reporta */}
+                {!esUsuario && indice > 0 && (
+                  <TouchableOpacity
+                    onPress={() => reportarRespuesta(mensaje.texto)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Reportar esta respuesta"
+                  >
+                    <Text style={globalStyles.chatReportar}>⚑ Reportar respuesta</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          );
+        })}
+
+        {enviando && (
+          <View style={[globalStyles.chatBubbleRow, globalStyles.chatBubbleRowAsistente]}>
+            <View style={[globalStyles.chatBubble, globalStyles.chatBubbleAsistente]}>
+              <Text style={globalStyles.chatBubbleTextAsistente}>Escribiendo...</Text>
+            </View>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* preguntas sugeridas */}
+      <Text style={globalStyles.chatSugerenciasTitulo}>
+        Preguntas sugeridas (desliza para ver más →)
+      </Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator
+        persistentScrollbar
+        style={globalStyles.chatSugerencias}
+        contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 8, alignItems: "center" }}
+      >
+        {PREGUNTAS_SUGERIDAS.map((sugerencia) => (
+          <TouchableOpacity
+            key={sugerencia}
+            style={globalStyles.chatSugerenciaChip}
+            onPress={() => enviarMensaje(sugerencia)}
+            disabled={enviando}
+            accessibilityRole="button"
+            accessibilityLabel={`Preguntar: ${sugerencia}`}
+          >
+            <Text style={globalStyles.chatSugerenciaTexto}>{sugerencia}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {/* entrada: foto + texto + enviar */}
+      <View style={globalStyles.chatEntradaFila}>
+        <TouchableOpacity
+          style={globalStyles.chatCamaraBoton}
+          onPress={enviarFoto}
+          disabled={enviando}
+          accessibilityRole="button"
+          accessibilityLabel="Tomar foto de un medicamento"
+          accessibilityHint="La IA lee la caja y la compara con las alergias del bebé"
+        >
+          <Text style={globalStyles.chatCamaraIcono}>📷</Text>
+        </TouchableOpacity>
+
+        <TextInput
+          placeholder="Escribe tu pregunta..."
+          placeholderTextColor={colors.muted}
+          value={textoEntrada}
+          onChangeText={setTextoEntrada}
+          style={globalStyles.chatEntradaInput}
+          multiline
+          accessibilityLabel="Escribe tu pregunta para el asistente virtual"
+          onSubmitEditing={() => enviarMensaje()}
+        />
+
+        <TouchableOpacity
+          style={[
+            globalStyles.chatEnviarBoton,
+            (enviando || !textoEntrada.trim()) && globalStyles.chatSendButtonDisabled,
+          ]}
+          onPress={() => enviarMensaje()}
+          disabled={enviando || !textoEntrada.trim()}
+          accessibilityRole="button"
+          accessibilityLabel="Enviar mensaje"
+        >
+          <Text style={globalStyles.chatEnviarTexto}>➤ Enviar</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
 
   return (
     <KeyboardAvoidingView
       style={globalStyles.screen}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <View style={[globalStyles.container, { flex: 1 }]}>
-        {/* header fijo arriba */}
-        <View style={globalStyles.headerCard}>
+      <View
+        style={[globalStyles.container, { flex: 1, maxWidth: 1180 }]}
+        onLayout={(e) => setAnchoDisponible(e.nativeEvent.layout.width)}
+      >
+        {/* encabezado */}
+        <View style={globalStyles.chatEncabezado}>
           <TouchableOpacity
             onPress={() => onGo("dashboard")}
             accessibilityRole="button"
@@ -85,109 +519,64 @@ export default function ChatbotScreen({ onGo }: Props) {
             <Text style={globalStyles.privacyLinkText}>← Volver al inicio</Text>
           </TouchableOpacity>
 
-          <Text style={[globalStyles.title, { marginTop: 8 }]}>
-            🤖 Asistente Virtual
-          </Text>
-
-          <Text style={globalStyles.subtitle}>
-            Chatbot con IA (Google Gemini) acotado a temas pediátricos. No
-            reemplaza una consulta médica real.
-          </Text>
-        </View>
-
-        {/* este es el único ScrollView de la pantalla: el historial del chat */}
-        <ScrollView
-          ref={scrollRef}
-          style={globalStyles.chatMessagesArea}
-          showsVerticalScrollIndicator={false}
-          onContentSizeChange={() =>
-            scrollRef.current?.scrollToEnd({ animated: true })
-          }
-        >
-          {mensajes.map((mensaje, indice) => (
-            <View
-              key={indice}
-              style={[
-                globalStyles.chatBubbleRow,
-                mensaje.rol === "usuario"
-                  ? globalStyles.chatBubbleRowUsuario
-                  : globalStyles.chatBubbleRowAsistente,
-              ]}
-            >
-              <View
-                style={[
-                  globalStyles.chatBubble,
-                  mensaje.rol === "usuario"
-                    ? globalStyles.chatBubbleUsuario
-                    : globalStyles.chatBubbleAsistente,
-                ]}
-              >
-                <Text
-                  style={
-                    mensaje.rol === "usuario"
-                      ? globalStyles.chatBubbleTextUsuario
-                      : globalStyles.chatBubbleTextAsistente
-                  }
-                >
-                  {mensaje.texto}
-                </Text>
-              </View>
+          <View style={globalStyles.chatEncabezadoFila}>
+            <Text style={globalStyles.chatEncabezadoTitulo} accessibilityRole="header">
+              🤖 Asistente Virtual
+            </Text>
+            <View style={globalStyles.chatInsignia}>
+              <Text style={globalStyles.chatInsigniaTexto}>✨ Respuestas con Gemini</Text>
             </View>
-          ))}
+          </View>
 
-          {enviando && (
-            <View
-              style={[
-                globalStyles.chatBubbleRow,
-                globalStyles.chatBubbleRowAsistente,
-              ]}
-            >
-              <View
-                style={[globalStyles.chatBubble, globalStyles.chatBubbleAsistente]}
+          <Text style={globalStyles.chatEncabezadoSub}>
+            Pregunta por vacunas, vitaminas, alimentación o cuidados. Responde
+            según la edad del bebé y lo cruza con sus alergias.
+          </Text>
+
+          {/* en celular la info lateral va en botones para no saturar */}
+          {!pantallaAncha && (
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
+              <TouchableOpacity
+                style={[globalStyles.chipButton, panel === "como" && globalStyles.chipButtonActive, { marginBottom: 0 }]}
+                onPress={() => setPanel(panel === "como" ? "ninguno" : "como")}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: panel === "como" }}
               >
-                <Text style={globalStyles.chatBubbleTextAsistente}>
-                  Escribiendo...
+                <Text style={[globalStyles.chipText, panel === "como" && globalStyles.chipTextActive]}>
+                  ℹ️ Cómo responde
                 </Text>
-              </View>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[globalStyles.chipButton, panel === "historial" && globalStyles.chipButtonActive, { marginBottom: 0 }]}
+                onPress={() => setPanel(panel === "historial" ? "ninguno" : "historial")}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: panel === "historial" }}
+              >
+                <Text style={[globalStyles.chipText, panel === "historial" && globalStyles.chipTextActive]}>
+                  🕘 Últimas consultas
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
-        </ScrollView>
-
-        {/* input de texto fijo abajo */}
-        <View style={globalStyles.chatInputRow}>
-          <TextInput
-            placeholder="Escribe tu pregunta..."
-            placeholderTextColor="#90A4AE"
-            value={textoEntrada}
-            onChangeText={setTextoEntrada}
-            style={globalStyles.chatInput}
-            multiline
-            accessibilityLabel="Escribe tu pregunta para el asistente virtual"
-            onSubmitEditing={enviarMensaje}
-          />
-
-          <TouchableOpacity
-            style={[
-              globalStyles.chatSendButton,
-              (enviando || !textoEntrada.trim()) &&
-                globalStyles.chatSendButtonDisabled,
-            ]}
-            onPress={enviarMensaje}
-            disabled={enviando || !textoEntrada.trim()}
-            accessibilityRole="button"
-            accessibilityLabel="Enviar mensaje"
-          >
-            <Text style={globalStyles.chatSendButtonText}>➤</Text>
-          </TouchableOpacity>
         </View>
 
-        <View style={globalStyles.noticeCard}>
-          <Text style={globalStyles.noticeText}>
-            Este asistente da orientación general y no sustituye una consulta
-            médica. Ante síntomas de urgencia, acude de inmediato a un
-            servicio de urgencias.
-          </Text>
-        </View>
+        {!pantallaAncha && panel !== "ninguno" && (
+          <ScrollView style={{ maxHeight: 260, marginBottom: 10 }}>
+            {panel === "como" ? tarjetaComoResponde : tarjetaHistorial}
+          </ScrollView>
+        )}
+
+        {pantallaAncha ? (
+          <View style={{ flex: 1, flexDirection: "row", gap: 16 }}>
+            <View style={{ flex: 1 }}>{chat}</View>
+            <ScrollView style={{ width: 300, flexGrow: 0 }}>
+              {tarjetaComoResponde}
+              {tarjetaHistorial}
+            </ScrollView>
+          </View>
+        ) : (
+          chat
+        )}
       </View>
     </KeyboardAvoidingView>
   );
