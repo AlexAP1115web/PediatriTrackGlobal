@@ -388,11 +388,13 @@ function crearEstilos(colors: Paleta, escala: number) {
     // ==========================
     chatMessagesArea: {
       flex: 1,
+      backgroundColor: colors.soft,
     },
 
     chatBubbleRow: {
       flexDirection: "row",
-      marginBottom: 10,
+      alignItems: "flex-end",
+      marginBottom: 12,
     },
 
     chatBubbleRowUsuario: {
@@ -403,36 +405,45 @@ function crearEstilos(colors: Paleta, escala: number) {
       justifyContent: "flex-start",
     },
 
+    // burbujas más redondas y con colores, estilo chat infantil
     chatBubble: {
-      maxWidth: "88%",
-      borderRadius: 18,
-      paddingVertical: 10,
-      paddingHorizontal: 14,
+      maxWidth: "84%",
+      flexShrink: 1,
+      borderRadius: 22,
+      paddingVertical: 11,
+      paddingHorizontal: 15,
     },
 
     chatBubbleUsuario: {
-      backgroundColor: colors.primary,
-      borderBottomRightRadius: 4,
+      backgroundColor: colors.primaryDark,
+      borderBottomRightRadius: 6,
+      ...sombraTenue,
     },
 
     chatBubbleAsistente: {
       backgroundColor: colors.white,
-      borderBottomLeftRadius: 4,
-      borderWidth: 1,
-      borderColor: colors.border,
+      borderBottomLeftRadius: 6,
+      borderWidth: 2,
+      borderColor: colors.primaryLight,
       ...sombraTenue,
     },
 
     chatBubbleTextUsuario: {
       color: colors.white,
-      fontSize: t(14),
-      lineHeight: t(20),
+      fontSize: t(15),
+      lineHeight: t(21),
+      fontWeight: "600",
     },
 
     chatBubbleTextAsistente: {
       color: colors.text,
-      fontSize: t(14),
-      lineHeight: t(20),
+      fontSize: t(15),
+      lineHeight: t(21),
+    },
+
+    chatAvatar: {
+      marginRight: 6,
+      marginBottom: 2,
     },
 
     chatInputRow: {
@@ -1549,7 +1560,7 @@ function crearEstilos(colors: Paleta, escala: number) {
       marginTop: 4,
     },
     chatInsignia: {
-      backgroundColor: colors.primaryLight,
+      backgroundColor: colors.white,
       borderRadius: 12,
       paddingHorizontal: 10,
       paddingVertical: 4,
@@ -1561,9 +1572,9 @@ function crearEstilos(colors: Paleta, escala: number) {
     },
     chatPrincipalCard: {
       backgroundColor: colors.white,
-      borderRadius: 16,
-      borderWidth: 1,
-      borderColor: colors.border,
+      borderRadius: 24,
+      borderWidth: 2,
+      borderColor: colors.primaryLight,
       overflow: "hidden",
       ...sombraTenue,
     },
@@ -1631,18 +1642,16 @@ function crearEstilos(colors: Paleta, escala: number) {
       paddingTop: 6,
     },
     chatSugerenciaChip: {
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 14,
-      paddingVertical: 6,
-      paddingHorizontal: 12,
+      borderWidth: 2,
+      borderRadius: 18,
+      paddingVertical: 8,
+      paddingHorizontal: 14,
       marginRight: 8,
-      backgroundColor: colors.soft,
     },
     chatSugerenciaTexto: {
-      fontSize: t(12),
+      fontSize: t(13),
       color: colors.text,
-      fontWeight: "600",
+      fontWeight: "800",
     },
     chatEntradaFila: {
       flexDirection: "row",
@@ -1651,14 +1660,14 @@ function crearEstilos(colors: Paleta, escala: number) {
       padding: 10,
     },
     chatCamaraBoton: {
-      width: 44,
-      height: 44,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+      borderWidth: 2,
+      borderColor: colors.pink,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: colors.white,
+      backgroundColor: colors.pinkLight,
     },
     chatCamaraIcono: {
       fontSize: t(18),
@@ -1666,11 +1675,11 @@ function crearEstilos(colors: Paleta, escala: number) {
     chatEntradaInput: {
       flex: 1,
       minWidth: 0,
-      minHeight: 44,
+      minHeight: 48,
       maxHeight: 110,
-      borderWidth: 1,
-      borderColor: colors.border,
-      borderRadius: 12,
+      borderWidth: 2,
+      borderColor: colors.primaryLight,
+      borderRadius: 22,
       paddingHorizontal: 12,
       paddingVertical: 10,
       fontSize: t(14),
@@ -1678,17 +1687,70 @@ function crearEstilos(colors: Paleta, escala: number) {
       backgroundColor: colors.white,
     },
     chatEnviarBoton: {
-      height: 44,
-      paddingHorizontal: 16,
-      borderRadius: 12,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       backgroundColor: colors.primaryDark,
       alignItems: "center",
       justifyContent: "center",
+      ...sombraTenue,
     },
     chatEnviarTexto: {
       color: colors.white,
+      fontWeight: "900",
+      fontSize: t(20),
+    },
+
+    // encabezado del chat con Pedi (la mascota)
+    chatHero: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      backgroundColor: colors.primaryLight,
+      borderRadius: 24,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      marginTop: 8,
+      overflow: "hidden",
+      borderWidth: 2,
+      borderColor: colors.white,
+      ...sombraSuave,
+    },
+    chatHeroTextos: {
+      flex: 1,
+      minWidth: 0,
+    },
+    chatHeroTitulo: {
+      fontSize: t(21),
+      fontWeight: "900",
+      color: colors.primaryDark,
+    },
+    chatHeroSub: {
+      fontSize: t(13),
+      lineHeight: t(18),
+      color: colors.text,
+      marginTop: 2,
+    },
+    chatHeroFila: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      alignItems: "center",
+      gap: 6,
+      marginTop: 8,
+    },
+    chatGlobito: {
+      backgroundColor: colors.white,
+      borderRadius: 16,
+      borderBottomLeftRadius: 4,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    chatGlobitoTexto: {
+      fontSize: t(12),
       fontWeight: "800",
-      fontSize: t(14),
+      color: colors.primaryDark,
     },
     chatLateralCard: {
       backgroundColor: colors.white,

@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView,
   Linking,
   Platform,
+  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -12,6 +13,14 @@ import {
   View,
 } from "react-native";
 
+import {
+  BotonRebote,
+  BurbujaAnimada,
+  FondoDivertido,
+  PuntosEscribiendo,
+  TextoConNegritas,
+} from "../components/ChatAnimado";
+import MascotaRobot, { EstadoMascota } from "../components/MascotaRobot";
 import { auth } from "../firebase/firebaseConfig";
 import {
   BebeFirebase,
@@ -50,16 +59,40 @@ type Consulta = {
 const MENSAJE_BIENVENIDA: MensajeUI = {
   rol: "asistente",
   texto:
-    "Hola, soy el Asistente Virtual de PediatriTrack Global. Pregúntame sobre vacunas, vitaminas, alimentación o cuidados y te respondo según la edad y las alergias del bebé. También puedes tomarle foto a la caja de un medicamento con 📷.\n\nNo sustituyo a un pediatra: ante síntomas o urgencias, consulta a un profesional de salud.",
+    "¡Hola! 👋 Soy Pedi, el robotito ayudante de PediatriTrack Global. Pregúntame sobre vacunas, vitaminas, comida o cuidados y te respondo según la edad y las alergias del bebé. También puedo leer la caja de una medicina si me mandas una foto con 📷.\n\nRecuerda: no sustituyo a un pediatra. Si hay síntomas o una urgencia, consulta a un profesional de salud.",
 };
 
+// cada pregunta sugerida lleva su emoji y su color, para que se vean
+// como botones de juguete
 const PREGUNTAS_SUGERIDAS = [
-  "¿Qué puede comer según su edad?",
-  "¿Qué hago si tiene fiebre?",
-  "Efectos de la próxima vacuna",
-  "¿Cómo introducir alimentos alergénicos?",
-  "Rutina de sueño para su edad",
+  { emoji: "🥕", texto: "¿Qué puede comer según su edad?", color: "verde" },
+  { emoji: "🌡️", texto: "¿Qué hago si tiene fiebre?", color: "rosa" },
+  { emoji: "💉", texto: "Efectos de la próxima vacuna", color: "azul" },
+  { emoji: "🥜", texto: "¿Cómo introducir alimentos alergénicos?", color: "amarillo" },
+  { emoji: "🌙", texto: "Rutina de sueño para su edad", color: "azul" },
+] as const;
+
+// lo que dice Pedi cuando lo tocas (solo tips de cómo usar el chat)
+const TIPS_PEDI = [
+  "¡Hola! Tócame cuando quieras 😄",
+  "Toca una pregunta de colores y te respondo",
+  "Con 📷 puedo leer la caja de una medicina",
+  "Arriba eliges al bebé y yo cuido sus alergias",
+  "Si es una urgencia, ¡llama al pediatra!",
 ];
+
+function colorDeChip(color: string) {
+  switch (color) {
+    case "verde":
+      return { backgroundColor: colors.greenLight, borderColor: colors.green };
+    case "rosa":
+      return { backgroundColor: colors.pinkLight, borderColor: colors.pink };
+    case "amarillo":
+      return { backgroundColor: colors.yellow, borderColor: colors.warning };
+    default:
+      return { backgroundColor: colors.primaryLight, borderColor: colors.primary };
+  }
+}
 
 const PASOS_COMO_RESPONDE = [
   "Lee tu pregunta junto con la edad y las alergias del bebé que elegiste (su nombre no se envía).",
@@ -73,7 +106,8 @@ const CORREO_REPORTES = "alexpa.110215@gmail.com";
 
 function tieneAlergias(texto?: string): boolean {
   const limpio = (texto || "").trim().toLowerCase();
-  return limpio !== "" && limpio !== "ninguna";
+  // en el registro algunos bebés quedaron con "Ninguno" y otros con "Ninguna"
+  return limpio !== "" && !["ninguna", "ninguno", "no", "n/a", "sin alergias"].includes(limpio);
 }
 
 function fechaCorta(): string {
@@ -117,6 +151,31 @@ export default function ChatbotScreen({ onGo }: Props) {
   const [consultas, setConsultas] = useState<Consulta[]>([]);
   const [panel, setPanel] = useState<"ninguno" | "como" | "historial">("ninguno");
   const scrollRef = useRef<ScrollView>(null);
+
+  // cómo se ve Pedi: saluda al entrar, piensa mientras llega la respuesta
+  // y da un saltito cuando ya contestó
+  const [animoPedi, setAnimoPedi] = useState<EstadoMascota>("saludando");
+  const [tipPedi, setTipPedi] = useState(0);
+  const estadoPedi: EstadoMascota = enviando ? "pensando" : animoPedi;
+  const temporizadorPedi = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cambiarAnimo = (animo: EstadoMascota, duracion: number) => {
+    if (temporizadorPedi.current) clearTimeout(temporizadorPedi.current);
+    setAnimoPedi(animo);
+    temporizadorPedi.current = setTimeout(() => setAnimoPedi("normal"), duracion);
+  };
+
+  useEffect(() => {
+    cambiarAnimo("saludando", 2200);
+    return () => {
+      if (temporizadorPedi.current) clearTimeout(temporizadorPedi.current);
+    };
+  }, []);
+
+  const tocarPedi = () => {
+    setTipPedi((actual) => (actual + 1) % TIPS_PEDI.length);
+    cambiarAnimo(animoPedi === "feliz" ? "saludando" : "feliz", 1600);
+  };
 
   const claveHistorial = `pediatritrack_consultas_${auth.currentUser?.uid || "anonimo"}`;
 
@@ -193,6 +252,7 @@ export default function ChatbotScreen({ onGo }: Props) {
     try {
       const respuesta = await preguntarAlChatbot(historialPrevio, texto, contexto);
       setMensajes([...conUsuario, { rol: "asistente", texto: respuesta }]);
+      cambiarAnimo("feliz", 1400);
       guardarConsulta({
         pregunta: texto,
         respuesta,
@@ -242,6 +302,7 @@ export default function ChatbotScreen({ onGo }: Props) {
     const resultado = await analizarFotoMedicamento(foto, contexto, bebe?.nombre);
     setMensajes([...conFoto, { rol: "asistente", texto: resultado }]);
     setEnviando(false);
+    cambiarAnimo("feliz", 1400);
     bajarAlFinal();
 
     guardarConsulta({
@@ -369,7 +430,7 @@ export default function ChatbotScreen({ onGo }: Props) {
                 ]
                   .filter(Boolean)
                   .join(" · ")}`
-              : `✓ ${bebe.nombre} (${formatearEdad(edadMeses)}) no tiene alergias registradas.`}
+              : `🛡️ ${bebe.nombre} (${formatearEdad(edadMeses)}) no tiene alergias registradas. Pedi lo tendrá en cuenta.`}
           </Text>
         </View>
       )}
@@ -385,13 +446,20 @@ export default function ChatbotScreen({ onGo }: Props) {
         {mensajes.map((mensaje, indice) => {
           const esUsuario = mensaje.rol === "usuario";
           return (
-            <View
+            <BurbujaAnimada
               key={indice}
+              desdeDerecha={esUsuario}
               style={[
                 globalStyles.chatBubbleRow,
                 esUsuario ? globalStyles.chatBubbleRowUsuario : globalStyles.chatBubbleRowAsistente,
               ]}
             >
+              {/* la carita de Pedi junto a sus mensajes */}
+              {!esUsuario && (
+                <View style={globalStyles.chatAvatar}>
+                  <MascotaRobot tamano={34} soloCara />
+                </View>
+              )}
               <View
                 style={[
                   globalStyles.chatBubble,
@@ -405,11 +473,10 @@ export default function ChatbotScreen({ onGo }: Props) {
                     accessibilityLabel="Foto del medicamento que enviaste"
                   />
                 )}
-                <Text
+                <TextoConNegritas
+                  texto={mensaje.texto}
                   style={esUsuario ? globalStyles.chatBubbleTextUsuario : globalStyles.chatBubbleTextAsistente}
-                >
-                  {mensaje.texto}
-                </Text>
+                />
 
                 {/* la bienvenida no es de la IA, esa no se reporta */}
                 {!esUsuario && indice > 0 && (
@@ -422,22 +489,25 @@ export default function ChatbotScreen({ onGo }: Props) {
                   </TouchableOpacity>
                 )}
               </View>
-            </View>
+            </BurbujaAnimada>
           );
         })}
 
         {enviando && (
-          <View style={[globalStyles.chatBubbleRow, globalStyles.chatBubbleRowAsistente]}>
-            <View style={[globalStyles.chatBubble, globalStyles.chatBubbleAsistente]}>
-              <Text style={globalStyles.chatBubbleTextAsistente}>Escribiendo...</Text>
+          <BurbujaAnimada style={[globalStyles.chatBubbleRow, globalStyles.chatBubbleRowAsistente]}>
+            <View style={globalStyles.chatAvatar}>
+              <MascotaRobot tamano={34} soloCara />
             </View>
-          </View>
+            <View style={[globalStyles.chatBubble, globalStyles.chatBubbleAsistente]}>
+              <PuntosEscribiendo />
+            </View>
+          </BurbujaAnimada>
         )}
       </ScrollView>
 
       {/* preguntas sugeridas */}
       <Text style={globalStyles.chatSugerenciasTitulo}>
-        Preguntas sugeridas (desliza para ver más →)
+        💡 Toca una pregunta (desliza para ver más →)
       </Text>
       <ScrollView
         horizontal
@@ -447,31 +517,31 @@ export default function ChatbotScreen({ onGo }: Props) {
         contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 8, alignItems: "center" }}
       >
         {PREGUNTAS_SUGERIDAS.map((sugerencia) => (
-          <TouchableOpacity
-            key={sugerencia}
-            style={globalStyles.chatSugerenciaChip}
-            onPress={() => enviarMensaje(sugerencia)}
+          <BotonRebote
+            key={sugerencia.texto}
+            style={[globalStyles.chatSugerenciaChip, colorDeChip(sugerencia.color)]}
+            onPress={() => enviarMensaje(sugerencia.texto)}
             disabled={enviando}
-            accessibilityRole="button"
-            accessibilityLabel={`Preguntar: ${sugerencia}`}
+            accessibilityLabel={`Preguntar: ${sugerencia.texto}`}
           >
-            <Text style={globalStyles.chatSugerenciaTexto}>{sugerencia}</Text>
-          </TouchableOpacity>
+            <Text style={globalStyles.chatSugerenciaTexto}>
+              {sugerencia.emoji} {sugerencia.texto}
+            </Text>
+          </BotonRebote>
         ))}
       </ScrollView>
 
       {/* entrada: foto + texto + enviar */}
       <View style={globalStyles.chatEntradaFila}>
-        <TouchableOpacity
+        <BotonRebote
           style={globalStyles.chatCamaraBoton}
           onPress={enviarFoto}
           disabled={enviando}
-          accessibilityRole="button"
           accessibilityLabel="Tomar foto de un medicamento"
           accessibilityHint="La IA lee la caja y la compara con las alergias del bebé"
         >
           <Text style={globalStyles.chatCamaraIcono}>📷</Text>
-        </TouchableOpacity>
+        </BotonRebote>
 
         <TextInput
           placeholder="Escribe tu pregunta..."
@@ -484,18 +554,17 @@ export default function ChatbotScreen({ onGo }: Props) {
           onSubmitEditing={() => enviarMensaje()}
         />
 
-        <TouchableOpacity
+        <BotonRebote
           style={[
             globalStyles.chatEnviarBoton,
             (enviando || !textoEntrada.trim()) && globalStyles.chatSendButtonDisabled,
           ]}
           onPress={() => enviarMensaje()}
           disabled={enviando || !textoEntrada.trim()}
-          accessibilityRole="button"
           accessibilityLabel="Enviar mensaje"
         >
-          <Text style={globalStyles.chatEnviarTexto}>➤ Enviar</Text>
-        </TouchableOpacity>
+          <Text style={globalStyles.chatEnviarTexto}>➤</Text>
+        </BotonRebote>
       </View>
     </View>
   );
@@ -519,19 +588,39 @@ export default function ChatbotScreen({ onGo }: Props) {
             <Text style={globalStyles.privacyLinkText}>← Volver al inicio</Text>
           </TouchableOpacity>
 
-          <View style={globalStyles.chatEncabezadoFila}>
-            <Text style={globalStyles.chatEncabezadoTitulo} accessibilityRole="header">
-              🤖 Asistente Virtual
-            </Text>
-            <View style={globalStyles.chatInsignia}>
-              <Text style={globalStyles.chatInsigniaTexto}>✨ Respuestas con Gemini</Text>
+          {/* encabezado con Pedi: si lo tocas saluda, brinca y te da un tip */}
+          <View style={globalStyles.chatHero}>
+            <FondoDivertido />
+            <Pressable
+              onPress={tocarPedi}
+              accessibilityRole="button"
+              accessibilityLabel="Pedi, el robotito del asistente"
+              accessibilityHint="Toca para que Pedi te dé un consejo de cómo usar el chat"
+            >
+              <MascotaRobot tamano={pantallaAncha ? 84 : 70} estado={estadoPedi} />
+            </Pressable>
+
+            <View style={globalStyles.chatHeroTextos}>
+              <Text style={globalStyles.chatHeroTitulo} accessibilityRole="header">
+                Asistente Virtual Pedi
+              </Text>
+              <Text style={globalStyles.chatHeroSub}>
+                {enviando
+                  ? "Pedi está pensando tu respuesta..."
+                  : "Pregunta por vacunas, vitaminas, comida o cuidados del bebé."}
+              </Text>
+              <View style={globalStyles.chatHeroFila}>
+                <BurbujaAnimada key={tipPedi} style={globalStyles.chatGlobito}>
+                  <Text style={globalStyles.chatGlobitoTexto} accessibilityLiveRegion="polite">
+                    {TIPS_PEDI[tipPedi]}
+                  </Text>
+                </BurbujaAnimada>
+                <View style={globalStyles.chatInsignia}>
+                  <Text style={globalStyles.chatInsigniaTexto}>✨ Con Gemini</Text>
+                </View>
+              </View>
             </View>
           </View>
-
-          <Text style={globalStyles.chatEncabezadoSub}>
-            Pregunta por vacunas, vitaminas, alimentación o cuidados. Responde
-            según la edad del bebé y lo cruza con sus alergias.
-          </Text>
 
           {/* en celular la info lateral va en botones para no saturar */}
           {!pantallaAncha && (
