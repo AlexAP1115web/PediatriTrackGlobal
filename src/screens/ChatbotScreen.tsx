@@ -16,7 +16,7 @@ import {
 import {
   BotonRebote,
   BurbujaAnimada,
-  FondoDivertido,
+  Nube,
   PuntosEscribiendo,
   TextoConNegritas,
 } from "../components/ChatAnimado";
@@ -70,6 +70,16 @@ const PREGUNTAS_SUGERIDAS = [
   { emoji: "💉", texto: "Efectos de la próxima vacuna", color: "azul" },
   { emoji: "🥜", texto: "¿Cómo introducir alimentos alergénicos?", color: "amarillo" },
   { emoji: "🌙", texto: "Rutina de sueño para su edad", color: "azul" },
+] as const;
+
+// temas grandes que aparecen al inicio, cuando todavía no hay plática
+const TEMAS_INICIO = [
+  { emoji: "🥕", titulo: "Comida para su edad", pregunta: "¿Qué puede comer según su edad?", color: "verde" },
+  { emoji: "🌡️", titulo: "Tiene fiebre", pregunta: "¿Qué hago si tiene fiebre?", color: "rosa" },
+  { emoji: "💉", titulo: "Su próxima vacuna", pregunta: "Efectos de la próxima vacuna", color: "azul" },
+  { emoji: "🌙", titulo: "Rutina de sueño", pregunta: "Rutina de sueño para su edad", color: "amarillo" },
+  { emoji: "🥜", titulo: "Alimentos alergénicos", pregunta: "¿Cómo introducir alimentos alergénicos?", color: "verde" },
+  { emoji: "📷", titulo: "Foto de una medicina", pregunta: "", color: "rosa" },
 ] as const;
 
 // lo que dice Pedi cuando lo tocas (solo tips de cómo usar el chat)
@@ -441,7 +451,10 @@ export default function ChatbotScreen({ onGo }: Props) {
         style={globalStyles.chatMessagesArea}
         contentContainerStyle={{ padding: 12 }}
         showsVerticalScrollIndicator={false}
-        onContentSizeChange={bajarAlFinal}
+        // al inicio no bajo, para que se vea la bienvenida y los temas
+        onContentSizeChange={() => {
+          if (mensajes.length > 1) bajarAlFinal();
+        }}
       >
         {mensajes.map((mensaje, indice) => {
           const esUsuario = mensaje.rol === "usuario";
@@ -493,6 +506,27 @@ export default function ChatbotScreen({ onGo }: Props) {
           );
         })}
 
+        {/* al inicio, temas grandes tipo botones de juguete */}
+        {mensajes.length === 1 && !enviando && (
+          <BurbujaAnimada style={globalStyles.chatTemas}>
+            <Text style={globalStyles.chatTemasTitulo}>¿De qué quieres platicar?</Text>
+            <View style={globalStyles.chatTemasGrid}>
+              {TEMAS_INICIO.map((tema) => (
+                <BotonRebote
+                  key={tema.titulo}
+                  estiloExterior={{ width: pantallaAncha ? "31.5%" : "47.5%" }}
+                  style={[globalStyles.chatTema, colorDeChip(tema.color)]}
+                  onPress={() => (tema.pregunta ? enviarMensaje(tema.pregunta) : enviarFoto())}
+                  accessibilityLabel={tema.pregunta ? `Preguntar: ${tema.pregunta}` : "Tomar foto de una medicina"}
+                >
+                  <Text style={globalStyles.chatTemaEmoji}>{tema.emoji}</Text>
+                  <Text style={globalStyles.chatTemaTexto}>{tema.titulo}</Text>
+                </BotonRebote>
+              ))}
+            </View>
+          </BurbujaAnimada>
+        )}
+
         {enviando && (
           <BurbujaAnimada style={[globalStyles.chatBubbleRow, globalStyles.chatBubbleRowAsistente]}>
             <View style={globalStyles.chatAvatar}>
@@ -505,7 +539,10 @@ export default function ChatbotScreen({ onGo }: Props) {
         )}
       </ScrollView>
 
-      {/* preguntas sugeridas */}
+      {/* preguntas sugeridas (cuando ya empezó la plática; antes están
+      los temas grandes) */}
+      {mensajes.length > 1 && (
+      <>
       <Text style={globalStyles.chatSugerenciasTitulo}>
         💡 Toca una pregunta (desliza para ver más →)
       </Text>
@@ -530,6 +567,8 @@ export default function ChatbotScreen({ onGo }: Props) {
           </BotonRebote>
         ))}
       </ScrollView>
+      </>
+      )}
 
       {/* entrada: foto + texto + enviar */}
       <View style={globalStyles.chatEntradaFila}>
@@ -588,26 +627,31 @@ export default function ChatbotScreen({ onGo }: Props) {
             <Text style={globalStyles.privacyLinkText}>← Volver al inicio</Text>
           </TouchableOpacity>
 
-          {/* encabezado con Pedi: si lo tocas saluda, brinca y te da un tip */}
+          {/* encabezado: el cielo donde vive Pedi. Si lo tocas saluda,
+          brinca y te da un tip */}
           <View style={globalStyles.chatHero}>
-            <FondoDivertido />
+            <Nube ancho={pantallaAncha ? 170 : 130} posicion={{ left: -18, bottom: -26 }} />
+            <Nube ancho={70} posicion={{ right: 18, top: 10 }} opacidad={0.85} />
+            <Nube ancho={46} posicion={{ right: 96, top: 34 }} opacidad={0.6} />
+
             <Pressable
               onPress={tocarPedi}
+              style={{ marginLeft: 4 }}
               accessibilityRole="button"
               accessibilityLabel="Pedi, el robotito del asistente"
               accessibilityHint="Toca para que Pedi te dé un consejo de cómo usar el chat"
             >
-              <MascotaRobot tamano={pantallaAncha ? 84 : 70} estado={estadoPedi} />
+              <MascotaRobot tamano={pantallaAncha ? 92 : 78} estado={estadoPedi} />
             </Pressable>
 
             <View style={globalStyles.chatHeroTextos}>
               <Text style={globalStyles.chatHeroTitulo} accessibilityRole="header">
-                Asistente Virtual Pedi
+                Pedi
               </Text>
               <Text style={globalStyles.chatHeroSub}>
                 {enviando
-                  ? "Pedi está pensando tu respuesta..."
-                  : "Pregunta por vacunas, vitaminas, comida o cuidados del bebé."}
+                  ? "Estoy pensando tu respuesta..."
+                  : "Tu asistente virtual. Pregúntame sobre vacunas, vitaminas, comida o cuidados del bebé."}
               </Text>
               <View style={globalStyles.chatHeroFila}>
                 <BurbujaAnimada key={tipPedi} style={globalStyles.chatGlobito}>
@@ -615,10 +659,11 @@ export default function ChatbotScreen({ onGo }: Props) {
                     {TIPS_PEDI[tipPedi]}
                   </Text>
                 </BurbujaAnimada>
-                <View style={globalStyles.chatInsignia}>
-                  <Text style={globalStyles.chatInsigniaTexto}>✨ Con Gemini</Text>
-                </View>
               </View>
+            </View>
+
+            <View style={globalStyles.chatInsigniaHero}>
+              <Text style={globalStyles.chatInsigniaTexto}>✨ Con Gemini</Text>
             </View>
           </View>
 

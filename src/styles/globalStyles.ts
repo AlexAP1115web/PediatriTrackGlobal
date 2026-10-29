@@ -32,6 +32,9 @@ export const paletaNormal = {
 
   soft: "#F5FAFF",
   soft2: "#E9F4FD",
+
+  // azul cielo clarito del encabezado de Pedi
+  cielo: "#BAE6FD",
 };
 
 export type Paleta = typeof paletaNormal;
@@ -71,6 +74,8 @@ export const paletaDaltonismo: Paleta = {
 
   soft: "#F7F9FC",
   soft2: "#E8EEF6",
+
+  cielo: "#CFE3F3",
 };
 
 // colors lo dejo exportado por si alguna pantalla lo ocupa; cambia junto
@@ -96,6 +101,38 @@ const sombraTenue = {
   elevation: 2,
 };
 
+// tipografía de toda la app: Nunito, que tiene las puntas redondeadas y se
+// ve más amigable para una app de bebés. Como en Android una fuente
+// personalizada no se lleva bien con fontWeight, aquí cambio cada peso por
+// su archivo de Nunito (las fuentes se cargan en src/app/index.tsx)
+const FUENTE_POR_PESO: Record<string, string> = {
+  "100": "Nunito_400Regular",
+  "200": "Nunito_400Regular",
+  "300": "Nunito_400Regular",
+  "400": "Nunito_400Regular",
+  normal: "Nunito_400Regular",
+  "500": "Nunito_600SemiBold",
+  "600": "Nunito_600SemiBold",
+  "700": "Nunito_700Bold",
+  bold: "Nunito_700Bold",
+  "800": "Nunito_800ExtraBold",
+  "900": "Nunito_900Black",
+};
+
+const PROPIEDADES_DE_TEXTO = ["fontSize", "fontWeight", "lineHeight", "letterSpacing", "textAlign", "fontStyle"];
+
+function conFuente<T extends Record<string, any>>(estilos: T): T {
+  for (const clave of Object.keys(estilos)) {
+    const estilo = estilos[clave];
+    if (!estilo || typeof estilo !== "object" || estilo.fontFamily) continue;
+    if (!PROPIEDADES_DE_TEXTO.some((propiedad) => propiedad in estilo)) continue;
+    const peso = String(estilo.fontWeight ?? "400");
+    estilo.fontFamily = FUENTE_POR_PESO[peso] || FUENTE_POR_PESO["400"];
+    delete estilo.fontWeight;
+  }
+  return estilos;
+}
+
 // antes era un StyleSheet fijo. Lo cambié a una función que arma los
 // estilos con una paleta y una escala de texto, así puedo tener el modo
 // daltonismo y el texto grande sin reescribir cada pantalla: todas siguen
@@ -104,7 +141,7 @@ function crearEstilos(colors: Paleta, escala: number) {
   // t() agranda los tamaños de letra cuando está activo "texto grande"
   const t = (tamano: number) => Math.round(tamano * escala);
 
-  return StyleSheet.create({
+  return StyleSheet.create(conFuente({
     // Pantalla general
     screen: {
       flex: 1,
@@ -127,10 +164,10 @@ function crearEstilos(colors: Paleta, escala: number) {
     headerCard: {
       backgroundColor: colors.white,
       padding: 20,
-      borderRadius: 24,
+      borderRadius: 28,
       marginBottom: 16,
-      borderLeftWidth: 6,
-      borderLeftColor: colors.primary,
+      borderWidth: 2,
+      borderColor: colors.primaryLight,
       ...sombraSuave,
     },
 
@@ -1313,7 +1350,7 @@ function crearEstilos(colors: Paleta, escala: number) {
       borderTopColor: colors.border,
       paddingVertical: 12,
       paddingBottom: 14,
-      shadowColor: "#006C32",
+      shadowColor: colors.primaryDark,
       shadowOffset: { width: 0, height: -3 },
       shadowOpacity: 0.06,
       shadowRadius: 8,
@@ -1327,9 +1364,9 @@ function crearEstilos(colors: Paleta, escala: number) {
     },
 
     bottomNavIconWrap: {
-      width: 42,
-      height: 32,
-      borderRadius: 16,
+      width: 52,
+      height: 34,
+      borderRadius: 17,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -1351,7 +1388,8 @@ function crearEstilos(colors: Paleta, escala: number) {
     },
 
     bottomNavActive: {
-      color: colors.primary,
+      color: colors.primaryDark,
+      fontFamily: "Nunito_900Black",
     },
 
     // ==========================
@@ -1701,19 +1739,18 @@ function crearEstilos(colors: Paleta, escala: number) {
       fontSize: t(20),
     },
 
-    // encabezado del chat con Pedi (la mascota)
+    // encabezado del chat: el cielo de Pedi con nubes
     chatHero: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 12,
-      backgroundColor: colors.primaryLight,
-      borderRadius: 24,
-      paddingVertical: 12,
+      gap: 14,
+      backgroundColor: colors.cielo,
+      borderRadius: 28,
+      paddingTop: 16,
+      paddingBottom: 14,
       paddingHorizontal: 14,
       marginTop: 8,
       overflow: "hidden",
-      borderWidth: 2,
-      borderColor: colors.white,
       ...sombraSuave,
     },
     chatHeroTextos: {
@@ -1721,15 +1758,19 @@ function crearEstilos(colors: Paleta, escala: number) {
       minWidth: 0,
     },
     chatHeroTitulo: {
-      fontSize: t(21),
+      fontSize: t(34),
+      lineHeight: t(38),
       fontWeight: "900",
       color: colors.primaryDark,
+      letterSpacing: -0.5,
     },
     chatHeroSub: {
       fontSize: t(13),
       lineHeight: t(18),
+      fontWeight: "700",
       color: colors.text,
       marginTop: 2,
+      maxWidth: 420,
     },
     chatHeroFila: {
       flexDirection: "row",
@@ -1737,6 +1778,52 @@ function crearEstilos(colors: Paleta, escala: number) {
       alignItems: "center",
       gap: 6,
       marginTop: 8,
+    },
+    chatInsigniaHero: {
+      position: "absolute",
+      top: 12,
+      right: 12,
+      backgroundColor: colors.white,
+      borderRadius: 12,
+      paddingHorizontal: 9,
+      paddingVertical: 3,
+    },
+    // temas grandes del inicio (botones tipo juguete, con el borde de abajo
+    // más grueso para que parezcan teclas)
+    chatTemas: {
+      marginTop: 4,
+      marginBottom: 6,
+    },
+    chatTemasTitulo: {
+      fontSize: t(16),
+      fontWeight: "900",
+      color: colors.primaryDark,
+      marginBottom: 10,
+      marginLeft: 2,
+    },
+    chatTemasGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 10,
+    },
+    chatTema: {
+      minHeight: 92,
+      borderRadius: 22,
+      borderWidth: 2,
+      borderBottomWidth: 5,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+      justifyContent: "space-between",
+    },
+    chatTemaEmoji: {
+      fontSize: t(28),
+    },
+    chatTemaTexto: {
+      fontSize: t(14),
+      lineHeight: t(18),
+      fontWeight: "800",
+      color: colors.text,
+      marginTop: 6,
     },
     chatGlobito: {
       backgroundColor: colors.white,
@@ -1814,7 +1901,7 @@ function crearEstilos(colors: Paleta, escala: number) {
       color: colors.muted,
       marginTop: 3,
     },
-  });
+  }));
 }
 
 export const globalStyles = crearEstilos(paletaNormal, 1);

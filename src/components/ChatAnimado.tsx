@@ -122,6 +122,7 @@ export function BotonRebote({
   onPress,
   disabled,
   style,
+  estiloExterior,
   accessibilityLabel,
   accessibilityHint,
 }: {
@@ -129,6 +130,8 @@ export function BotonRebote({
   onPress: () => void;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  // para anchos en porcentaje (los temas del inicio), va en el Pressable
+  estiloExterior?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
   accessibilityHint?: string;
 }) {
@@ -143,6 +146,7 @@ export function BotonRebote({
       onPressIn={() => animar(0.9)}
       onPressOut={() => animar(1)}
       disabled={disabled}
+      style={estiloExterior}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
@@ -155,73 +159,28 @@ export function BotonRebote({
   );
 }
 
-// ---------- burbujitas y estrellas que flotan en el fondo del encabezado ----------
-function Decoracion({
-  tipo,
-  tamano,
-  color,
+// ---------- nubecitas del encabezado (el "cielo" donde vive Pedi) ----------
+// las dibujo con círculos encima de una base redondeada, sin imágenes
+export function Nube({
+  ancho,
   posicion,
-  retraso,
+  opacidad = 1,
 }: {
-  tipo: "burbuja" | "estrella";
-  tamano: number;
-  color: string;
+  ancho: number;
   posicion: ViewStyle;
-  retraso: number;
+  opacidad?: number;
 }) {
-  const valor = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    if (reducirMovimiento) return;
-    const bucle = Animated.loop(
-      Animated.sequence([
-        Animated.delay(retraso),
-        Animated.timing(valor, { toValue: 1, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVO }),
-        Animated.timing(valor, { toValue: 0, duration: 1800, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVO }),
-      ])
-    );
-    bucle.start();
-    return () => bucle.stop();
-  }, []);
-
-  const estilo = {
-    position: "absolute" as const,
-    ...posicion,
-    opacity: valor.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0.95] }),
-    transform: [
-      { translateY: valor.interpolate({ inputRange: [0, 1], outputRange: [0, -8] }) },
-      { scale: valor.interpolate({ inputRange: [0, 1], outputRange: [0.9, 1.1] }) },
-    ],
-  };
-
-  if (tipo === "estrella") {
-    return (
-      <Animated.Text style={[estilo, { fontSize: tamano, color }]} importantForAccessibility="no">
-        ★
-      </Animated.Text>
-    );
-  }
-  return (
-    <Animated.View
-      style={[estilo, { width: tamano, height: tamano, borderRadius: tamano / 2, backgroundColor: color }]}
-    />
-  );
-}
-
-export function FondoDivertido() {
+  const alto = ancho * 0.34;
   return (
     <View
       pointerEvents="none"
-      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, overflow: "hidden" }}
       importantForAccessibility="no-hide-descendants"
       accessibilityElementsHidden
+      style={{ position: "absolute", width: ancho, height: ancho * 0.62, opacity: opacidad, ...posicion }}
     >
-      <Decoracion tipo="burbuja" tamano={46} color={colors.pinkLight} posicion={{ top: -10, right: 30 }} retraso={0} />
-      <Decoracion tipo="burbuja" tamano={26} color={colors.greenLight} posicion={{ bottom: 8, right: 90 }} retraso={500} />
-      <Decoracion tipo="burbuja" tamano={18} color={colors.yellow} posicion={{ top: 14, left: "48%" }} retraso={900} />
-      <Decoracion tipo="estrella" tamano={16} color={colors.pink} posicion={{ top: 10, right: 12 }} retraso={300} />
-      <Decoracion tipo="estrella" tamano={13} color={colors.primary} posicion={{ bottom: 12, right: 24 }} retraso={1200} />
-      <Decoracion tipo="estrella" tamano={11} color={colors.warning} posicion={{ top: 40, left: "60%" }} retraso={700} />
+      <View style={{ position: "absolute", bottom: 0, left: 0, width: ancho, height: alto, borderRadius: alto / 2, backgroundColor: colors.white }} />
+      <View style={{ position: "absolute", bottom: alto * 0.45, left: ancho * 0.16, width: ancho * 0.36, height: ancho * 0.36, borderRadius: ancho, backgroundColor: colors.white }} />
+      <View style={{ position: "absolute", bottom: alto * 0.4, left: ancho * 0.42, width: ancho * 0.44, height: ancho * 0.44, borderRadius: ancho, backgroundColor: colors.white }} />
     </View>
   );
 }

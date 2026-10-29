@@ -1,3 +1,9 @@
+import { Nunito_400Regular } from "@expo-google-fonts/nunito/400Regular";
+import { Nunito_600SemiBold } from "@expo-google-fonts/nunito/600SemiBold";
+import { Nunito_700Bold } from "@expo-google-fonts/nunito/700Bold";
+import { Nunito_800ExtraBold } from "@expo-google-fonts/nunito/800ExtraBold";
+import { Nunito_900Black } from "@expo-google-fonts/nunito/900Black";
+import { useFonts } from "expo-font";
 import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
@@ -43,6 +49,24 @@ const INTERVALO_REVISION_MS = 30 * 1000; // reviso cada 30 segundos si ya se pas
 // envuelvo toda la app en el provider de accesibilidad para que el modo
 // daltonismo y el texto grande apliquen en todas las pantallas
 export default function Index() {
+  // cargo la letra Nunito antes de mostrar la app (si fallara, la app sigue
+  // con la letra del sistema)
+  const [fuentesListas, errorFuentes] = useFonts({
+    Nunito_400Regular,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+    Nunito_800ExtraBold,
+    Nunito_900Black,
+  });
+
+  if (!fuentesListas && !errorFuentes) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#F5FAFF" }}>
+        <ActivityIndicator size="large" color="#0EA5E9" />
+      </View>
+    );
+  }
+
   return (
     <AccesibilidadProvider>
       <PantallasApp />
