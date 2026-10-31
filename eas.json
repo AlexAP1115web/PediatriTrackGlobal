@@ -10,6 +10,13 @@
       "android": {
         "buildType": "app-bundle"
       }
+    },
+    "preview": {
+      "environment": "production",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
     }
   }
 }
