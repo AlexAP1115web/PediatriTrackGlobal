@@ -1,25 +1,29 @@
 import { AccessibilityInfo } from "react-native";
 
 // aquí decido si las animaciones (Pedi, burbujas, confeti) se mueven o no.
-// Se apagan si:
-//   - el usuario activó "Menos animaciones" en la pantalla de Accesibilidad
-//   - o si el celular tiene activado "reducir movimiento" en sus ajustes
-// Las animaciones leen esto cuando se dibujan; al cambiar la opción la app
-// vuelve a dibujar la pantalla, así que toman el valor nuevo
+// Lo controla la opción "Menos animaciones" (en Accesibilidad o con el
+// botón de Pedi en el chat).
+//
+// Si el celular o la computadora tienen activado "reducir movimiento", lo
+// uso solo como valor de inicio la primera vez; después manda lo que el
+// usuario elija. Antes lo respetaba siempre y en algunas computadoras con
+// las animaciones de Windows apagadas Pedi nunca se movía aunque el usuario
+// quisiera
 
 let menosAnimacionesApp = false;
-let reducirMovimientoSistema = false;
-
-AccessibilityInfo.isReduceMotionEnabled()
-  .then((valor) => {
-    reducirMovimientoSistema = valor;
-  })
-  .catch(() => {});
 
 export function configurarMenosAnimaciones(activo: boolean) {
   menosAnimacionesApp = activo;
 }
 
 export function sinMovimiento(): boolean {
-  return menosAnimacionesApp || reducirMovimientoSistema;
+  return menosAnimacionesApp;
+}
+
+export async function sistemaPideMenosMovimiento(): Promise<boolean> {
+  try {
+    return await AccessibilityInfo.isReduceMotionEnabled();
+  } catch {
+    return false;
+  }
 }

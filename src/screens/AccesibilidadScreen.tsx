@@ -304,7 +304,7 @@ export default function AccesibilidadScreen({ onGo }: Props) {
 
         <FilaSwitch
           titulo="⏸ Menos animaciones"
-          descripcion="Pedi, las burbujas y el confeti se quedan quietos. Útil si el movimiento te marea o te distrae. Si tu celular tiene activado reducir movimiento, la app también lo respeta."
+          descripcion="Pedi, las burbujas y el confeti se quedan quietos. Útil si el movimiento te marea o te distrae. Si tu celular tiene activado reducir movimiento, la app empieza con esta opción encendida."
           valor={menosAnimaciones}
           onCambiar={(valor) => cambiarOpciones({ menosAnimaciones: valor })}
         />

@@ -116,7 +116,6 @@ const PASOS_COMO_RESPONDE = [
 ];
 
 const MAX_CONSULTAS = 8;
-const CLAVE_PEDI_QUIETO = "pediatritrack_pedi_quieto";
 const CORREO_REPORTES = "alexpa.110215@gmail.com";
 
 function tieneAlergias(texto?: string): boolean {
@@ -169,13 +168,17 @@ export default function ChatbotScreen({ onGo }: Props) {
 
   // cómo se ve Pedi: saluda al entrar, piensa mientras llega la respuesta
   // y da un saltito cuando ya contestó
-  const { leerEnVozAlta } = useAccesibilidad();
+  const { leerEnVozAlta, menosAnimaciones, cambiarOpciones } = useAccesibilidad();
   const [animoPedi, setAnimoPedi] = useState<EstadoMascota>("saludando");
   const [tipPedi, setTipPedi] = useState(0);
-  // botón para que Pedi deje de moverse cuando el usuario quiera
-  const [pediQuieto, setPediQuieto] = useState(false);
-  // qué mensaje se está leyendo en voz alta (null = ninguno)
+  // el botón de Pedi en el chat cambia la misma opción "Menos animaciones"
+  // de Accesibilidad (sin volver a dibujar la pantalla, para no perder la
+  // plática)
+  const pediQuieto = menosAnimaciones;
+  // qué mensaje se está leyendo en voz alta (null = ninguno) y cuál se está
+  // preparando (la voz de Gemini tarda un par de segundos en generarse)
   const [leyendo, setLeyendo] = useState<number | null>(null);
+  const [preparandoVoz, setPreparandoVoz] = useState<number | null>(null);
   const escribiendo = textoEntrada.trim().length > 0;
   // Pedi piensa mientras llega la respuesta, mueve la boca mientras lee,
   // y te mira mientras escribes
@@ -195,8 +198,7 @@ export default function ChatbotScreen({ onGo }: Props) {
   };
 
   useEffect(() => {
-    cambiarAnimo("saludando", 2200);
-    leerPreferencia(CLAVE_PEDI_QUIETO).then((valor) => setPediQuieto(valor === "1"));
+    cambiarAnimo("saludando", 2600);
     return () => {
       if (temporizadorPedi.current) clearTimeout(temporizadorPedi.current);
       callar();
@@ -204,25 +206,36 @@ export default function ChatbotScreen({ onGo }: Props) {
   }, []);
 
   const cambiarPediQuieto = () => {
-    const nuevo = !pediQuieto;
-    setPediQuieto(nuevo);
-    guardarPreferencia(CLAVE_PEDI_QUIETO, nuevo ? "1" : "0");
+    const quieto = !pediQuieto;
+    cambiarOpciones({ menosAnimaciones: quieto }, false);
+    if (!quieto) cambiarAnimo("feliz", 3200);
   };
 
   // 🔊 leer o dejar de leer un mensaje
   const leerMensaje = (indice: number, texto: string) => {
-    if (leyendo === indice) {
+    if (leyendo === indice || preparandoVoz === indice) {
       callar();
       setLeyendo(null);
+      setPreparandoVoz(null);
       return;
     }
-    setLeyendo(indice);
-    hablar(texto, () => setLeyendo((actual) => (actual === indice ? null : actual)));
+    setLeyendo(null);
+    setPreparandoVoz(indice);
+    hablar(texto, {
+      alEmpezar: () => {
+        setPreparandoVoz((actual) => (actual === indice ? null : actual));
+        setLeyendo(indice);
+      },
+      alTerminar: () => {
+        setPreparandoVoz((actual) => (actual === indice ? null : actual));
+        setLeyendo((actual) => (actual === indice ? null : actual));
+      },
+    });
   };
 
   const tocarPedi = () => {
     setTipPedi((actual) => (actual + 1) % TIPS_PEDI.length);
-    cambiarAnimo(animoPedi === "feliz" ? "saludando" : "feliz", 1600);
+    cambiarAnimo(animoPedi === "feliz" ? "saludando" : "feliz", 3000);
   };
 
   const claveHistorial = `pediatritrack_consultas_${auth.currentUser?.uid || "anonimo"}`;
@@ -301,7 +314,7 @@ export default function ChatbotScreen({ onGo }: Props) {
       const respuestaCompleta = await preguntarAlChatbot(historialPrevio, texto, contexto);
       const { texto: respuesta, seguimiento } = separarSeguimiento(respuestaCompleta);
       setMensajes([...conUsuario, { rol: "asistente", texto: respuesta, seguimiento }]);
-      cambiarAnimo("feliz", 1600);
+      cambiarAnimo("feliz", 3200);
       if (leerEnVozAlta) leerMensaje(conUsuario.length, respuesta);
       guardarConsulta({
         pregunta: texto,
@@ -352,7 +365,7 @@ export default function ChatbotScreen({ onGo }: Props) {
     const resultado = await analizarFotoMedicamento(foto, contexto, bebe?.nombre);
     setMensajes([...conFoto, { rol: "asistente", texto: resultado }]);
     setEnviando(false);
-    cambiarAnimo("feliz", 1600);
+    cambiarAnimo("feliz", 3200);
     if (leerEnVozAlta) leerMensaje(conFoto.length, resultado);
     bajarAlFinal();
 
@@ -537,13 +550,25 @@ export default function ChatbotScreen({ onGo }: Props) {
                 {!esUsuario && (
                   <View style={globalStyles.chatAccionesFila}>
                     <TouchableOpacity
-                      style={[globalStyles.chatAccion, leyendo === indice && globalStyles.chatAccionActiva]}
+                      style={[
+                        globalStyles.chatAccion,
+                        (leyendo === indice || preparandoVoz === indice) && globalStyles.chatAccionActiva,
+                      ]}
                       onPress={() => leerMensaje(indice, mensaje.texto)}
                       accessibilityRole="button"
-                      accessibilityLabel={leyendo === indice ? "Dejar de leer en voz alta" : "Escuchar esta respuesta en voz alta"}
+                      accessibilityLabel={
+                        leyendo === indice || preparandoVoz === indice
+                          ? "Dejar de leer en voz alta"
+                          : "Escuchar esta respuesta en voz alta"
+                      }
                     >
-                      <Text style={[globalStyles.chatAccionTexto, leyendo === indice && globalStyles.chatAccionTextoActiva]}>
-                        {leyendo === indice ? "⏹ Detener" : "🔊 Escuchar"}
+                      <Text
+                        style={[
+                          globalStyles.chatAccionTexto,
+                          (leyendo === indice || preparandoVoz === indice) && globalStyles.chatAccionTextoActiva,
+                        ]}
+                      >
+                        {preparandoVoz === indice ? "⏳ Preparando voz..." : leyendo === indice ? "⏹ Detener" : "🔊 Escuchar"}
                       </Text>
                     </TouchableOpacity>
 
@@ -721,7 +746,7 @@ export default function ChatbotScreen({ onGo }: Props) {
               accessibilityLabel="Pedi, el robotito del asistente"
               accessibilityHint="Toca para que Pedi te dé un consejo de cómo usar el chat"
             >
-              <MascotaRobot tamano={pantallaAncha ? 92 : 78} estado={estadoPedi} quieto={pediQuieto} />
+              <MascotaRobot tamano={pantallaAncha ? 104 : 86} estado={estadoPedi} quieto={pediQuieto} />
             </Pressable>
 
             <View style={globalStyles.chatHeroTextos}>

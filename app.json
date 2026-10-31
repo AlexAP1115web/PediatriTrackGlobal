@@ -43,6 +43,15 @@
           "photosPermission": "PediatriTrack Global usa tus fotos solo si eliges una imagen de un medicamento.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
       ]
     ],
     "experiments": {

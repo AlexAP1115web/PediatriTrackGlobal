@@ -2,7 +2,7 @@ import { createContext, ReactNode, useContext, useEffect, useState } from "react
 
 import { configurarLenguajeFacil } from "../services/chatbotService";
 import { aplicarTema, ModoColor, TamanoTexto } from "../styles/globalStyles";
-import { configurarMenosAnimaciones } from "../utils/movimiento";
+import { configurarMenosAnimaciones, sistemaPideMenosMovimiento } from "../utils/movimiento";
 import { guardarPreferencia, leerPreferencia } from "../utils/preferencias";
 
 // aquí guardo las opciones de accesibilidad. Las pongo en un contexto para
@@ -46,7 +46,9 @@ type ValorAccesibilidad = OpcionesAccesibilidad & {
   // cambia cada vez que se aplica un tema nuevo; el index la usa como key
   // para volver a dibujar la pantalla con los estilos nuevos
   versionTema: number;
-  cambiarOpciones: (cambios: Partial<OpcionesAccesibilidad>) => void;
+  // redibujar = false cambia la opción sin volver a dibujar la pantalla
+  // (lo uso en el chat para no perder la plática al pausar a Pedi)
+  cambiarOpciones: (cambios: Partial<OpcionesAccesibilidad>, redibujar?: boolean) => void;
   restablecer: () => void;
 };
 
@@ -60,9 +62,10 @@ const AccesibilidadContext = createContext<ValorAccesibilidad>({
 });
 
 // las preferencias viejas venían como { daltonismo, textoGrande }; aquí
-// las paso al formato nuevo para que nadie pierda lo que ya tenía
-function leerGuardado(datos: any): OpcionesAccesibilidad {
-  const opciones = { ...OPCIONES_INICIALES };
+// las paso al formato nuevo para que nadie pierda lo que ya tenía.
+// Si nunca eligió lo de las animaciones, empiezo con lo que diga el sistema
+function leerGuardado(datos: any, sistemaSinMovimiento: boolean): OpcionesAccesibilidad {
+  const opciones = { ...OPCIONES_INICIALES, menosAnimaciones: sistemaSinMovimiento };
   if (!datos || typeof datos !== "object") return opciones;
 
   if (datos.daltonismo === true && !datos.modoColor) opciones.modoColor = "rojoVerde";
@@ -75,7 +78,7 @@ function leerGuardado(datos: any): OpcionesAccesibilidad {
     opciones.tamanoTexto = datos.tamanoTexto;
   }
   opciones.altoContraste = !!datos.altoContraste;
-  opciones.menosAnimaciones = !!datos.menosAnimaciones;
+  if (typeof datos.menosAnimaciones === "boolean") opciones.menosAnimaciones = datos.menosAnimaciones;
   opciones.lenguajeFacil = !!datos.lenguajeFacil;
   opciones.leerEnVozAlta = !!datos.leerEnVozAlta;
   return opciones;
@@ -88,27 +91,30 @@ export function AccesibilidadProvider({ children }: { children: ReactNode }) {
   // al abrir la app cargo lo que el usuario dejó guardado
   useEffect(() => {
     (async () => {
+      const sistemaSinMovimiento = await sistemaPideMenosMovimiento();
       const guardado = await leerPreferencia(CLAVE_PREFERENCIAS);
-      if (!guardado) return;
+      let datos: any = null;
       try {
-        aplicar(leerGuardado(JSON.parse(guardado)), false);
+        datos = guardado ? JSON.parse(guardado) : null;
       } catch {
         // si el dato estaba mal guardado me quedo con lo normal
       }
+      const iniciales = leerGuardado(datos, sistemaSinMovimiento);
+      if (datos || iniciales.menosAnimaciones) aplicar(iniciales, false);
     })();
   }, []);
 
-  const aplicar = (nuevas: OpcionesAccesibilidad, guardar = true) => {
-    aplicarTema(nuevas.modoColor, nuevas.tamanoTexto, nuevas.altoContraste);
+  const aplicar = (nuevas: OpcionesAccesibilidad, guardar = true, redibujar = true) => {
+    if (redibujar) aplicarTema(nuevas.modoColor, nuevas.tamanoTexto, nuevas.altoContraste);
     configurarMenosAnimaciones(nuevas.menosAnimaciones);
     configurarLenguajeFacil(nuevas.lenguajeFacil);
     setOpciones(nuevas);
-    setVersionTema((v) => v + 1);
+    if (redibujar) setVersionTema((v) => v + 1);
     if (guardar) guardarPreferencia(CLAVE_PREFERENCIAS, JSON.stringify(nuevas));
   };
 
-  const cambiarOpciones = (cambios: Partial<OpcionesAccesibilidad>) =>
-    aplicar({ ...opciones, ...cambios });
+  const cambiarOpciones = (cambios: Partial<OpcionesAccesibilidad>, redibujar = true) =>
+    aplicar({ ...opciones, ...cambios }, true, redibujar);
 
   return (
     <AccesibilidadContext.Provider
