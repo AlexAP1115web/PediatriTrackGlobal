@@ -551,7 +551,7 @@ export default function VaccinationScreen({ onGo }: Props) {
       id: 7,
       icono: "♿",
       titulo: "Accesibilidad",
-      descripcion: "Modo daltonismo y texto más grande.",
+      descripcion: "Colores para daltonismo, letra grande, voz y más.",
       ruta: "accesibilidad",
     },
   ];

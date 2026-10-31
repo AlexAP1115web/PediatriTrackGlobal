@@ -18,6 +18,7 @@ import {
   AccesibilidadProvider,
   useAccesibilidad,
 } from "../context/AccesibilidadContext";
+import PediFlotante from "../components/PediFlotante";
 import AccesibilidadScreen from "../screens/AccesibilidadScreen";
 import BabyRegisterScreen from "../screens/BabyRegisterScreen";
 import ChatbotScreen from "../screens/ChatbotScreen";
@@ -41,6 +42,15 @@ type ScreenName =
   | "privacidad"
   | "chatbot"
   | "accesibilidad";
+
+// pantallas donde aparece Pedi flotando para abrir el asistente
+const PANTALLAS_CON_PEDI: ScreenName[] = [
+  "dashboard",
+  "vitaminas",
+  "documentos",
+  "alimentacion",
+  "info",
+];
 
 // tiempo máximo que dejo la sesión inactiva antes de cerrarla sola (por seguridad)
 const TIEMPO_MAXIMO_INACTIVIDAD_MS = 30 * 60 * 1000; // 30 minutos
@@ -218,6 +228,9 @@ function PantallasApp() {
       onTouchStart={registrarActividad}
     >
       {renderizarPantallaActual()}
+      {!verificando && PANTALLAS_CON_PEDI.includes(pantalla) && (
+        <PediFlotante onAbrir={() => navegar("chatbot")} />
+      )}
     </View>
   );
 }

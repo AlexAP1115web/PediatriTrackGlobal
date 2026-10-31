@@ -9,6 +9,7 @@ import {
 
 import { GUIAS_MODULOS, ModuloAyuda } from "../constants/guiasModulos";
 import { explicarModulo, MensajeChat } from "../services/chatbotService";
+import MarkdownPedi from "./MarkdownPedi";
 import { colors, globalStyles } from "../styles/globalStyles";
 
 type Props = {
@@ -87,18 +88,16 @@ export default function AyudaModulo({ modulo }: Props) {
         </TouchableOpacity>
       </View>
 
-      {mensajes.map((mensaje, indice) => (
-        <Text
-          key={indice}
-          style={
-            mensaje.rol === "usuario"
-              ? globalStyles.ayudaPreguntaTexto
-              : globalStyles.ayudaRespuestaTexto
-          }
-        >
-          {mensaje.rol === "usuario" ? `Tú: ${mensaje.texto}` : mensaje.texto}
-        </Text>
-      ))}
+      {mensajes.map((mensaje, indice) =>
+        mensaje.rol === "usuario" ? (
+          <Text key={indice} style={globalStyles.ayudaPreguntaTexto}>
+            Tú: {mensaje.texto}
+          </Text>
+        ) : (
+          // la explicación viene en Markdown (pasos numerados y negritas)
+          <MarkdownPedi key={indice} texto={mensaje.texto} style={globalStyles.ayudaRespuestaTexto} />
+        )
+      )}
 
       {cargando && (
         <View style={{ flexDirection: "row", alignItems: "center", marginTop: 8 }}>

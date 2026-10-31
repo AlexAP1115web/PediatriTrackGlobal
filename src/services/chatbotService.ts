@@ -84,9 +84,51 @@ seguimiento pediátrico para padres y tutores. Debes seguir SIEMPRE estas reglas
    puedes ayudar con temas relacionados al bebé o niño.
 5. Responde en español de México, de forma breve, cálida y clara (máximo
    unas 4-5 líneas por respuesta).
-6. Usa un tono alegre y amigable, puedes poner 1 o 2 emojis. No uses
-   formato markdown (nada de asteriscos ni encabezados).
+6. Usa un tono alegre y amigable, puedes poner 1 o 2 emojis.
+7. Da formato con Markdown sencillo (la app lo dibuja bonito):
+   - Empieza con un título corto con emoji usando "### ".
+   - Usa viñetas con "- " o pasos con "1. ".
+   - Pon en **negritas** lo más importante.
+   - Si hay una advertencia, ponla en una línea que empiece con "> ".
+   - No uses tablas, imágenes ni bloques de código.
+8. Al final, en una línea aparte, escribe "SIGUE:" y 2 o 3 preguntas cortas
+   que el tutor podría hacer después, separadas por "|". Ejemplo:
+   SIGUE: ¿Cuánta agua le doy? | ¿Cuándo voy al pediatra?
 `.trim();
+
+// "lenguaje fácil": lo activan en la pantalla de Accesibilidad para que
+// Pedi conteste con palabras más sencillas (personas que leen con
+// dificultad, que no hablan bien español o con discapacidad intelectual)
+let lenguajeFacil = false;
+
+export function configurarLenguajeFacil(activo: boolean) {
+  lenguajeFacil = activo;
+}
+
+const INSTRUCCION_LENGUAJE_FACIL = `
+
+IMPORTANTE (lenguaje fácil activado): usa frases muy cortas y palabras de
+todos los días, como si le explicaras a alguien que está aprendiendo a
+leer. Máximo 5 viñetas. Nada de palabras técnicas; si tienes que usar una,
+explícala en la misma frase.`;
+
+// separo las preguntas de seguimiento ("SIGUE: a | b | c") del resto de la
+// respuesta, para mostrarlas como botones debajo del mensaje
+export function separarSeguimiento(texto: string): { texto: string; seguimiento: string[] } {
+  const lineas = texto.split("\n");
+  let seguimiento: string[] = [];
+  const limpias = lineas.filter((linea) => {
+    const coincide = linea.match(/^\s*\**\s*sigue\s*\**\s*:\s*(.+)$/i);
+    if (!coincide) return true;
+    seguimiento = coincide[1]
+      .split("|")
+      .map((pregunta) => pregunta.replace(/\*/g, "").trim())
+      .filter((pregunta) => pregunta.length > 2 && pregunta.length < 90)
+      .slice(0, 3);
+    return false;
+  });
+  return { texto: limpias.join("\n").trim(), seguimiento };
+}
 
 export type MensajeChat = {
   rol: "usuario" | "asistente";
@@ -300,7 +342,10 @@ export async function preguntarAlChatbot(
 ): Promise<string> {
   if (!GEMINI_API_KEY && !OPENAI_API_KEY) return SIN_LLAVES;
 
-  const instrucciones = INSTRUCCIONES_SISTEMA + describirContexto(contexto);
+  const instrucciones =
+    INSTRUCCIONES_SISTEMA +
+    (lenguajeFacil ? INSTRUCCION_LENGUAJE_FACIL : "") +
+    describirContexto(contexto);
 
   try {
     let codigoErrorGemini: number | undefined;
@@ -359,6 +404,8 @@ Reglas:
 4. Si te preguntan algo médico, di que eso lo responde el Asistente Virtual
    o su pediatra.
 5. Español de México, máximo unas 10 líneas.
+6. Puedes usar Markdown sencillo: pasos con "1. " y **negritas** para los
+   nombres de botones.${lenguajeFacil ? "\n7. Lenguaje fácil: frases muy cortas y palabras de todos los días." : ""}
 `.trim();
 
   const mensaje =

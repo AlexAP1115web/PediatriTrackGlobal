@@ -78,6 +78,106 @@ export const paletaDaltonismo: Paleta = {
   cielo: "#CFE3F3",
 };
 
+// paleta para daltonismo azul-amarillo (tritanopía). Quien la tiene
+// confunde azul con verde y amarillo con rosa, así que aquí lo "bien" va en
+// verde azulado oscuro y lo "mal" en rojo, que sí se distinguen bien
+export const paletaAzulAmarillo: Paleta = {
+  background: "#F8FAFA",
+  white: "#FFFFFF",
+
+  primary: "#0F766E",
+  primaryDark: "#134E4A",
+  primaryLight: "#D5F2EE",
+
+  accent: "#C2185B",
+
+  pink: "#C2185B",
+  pinkLight: "#FBE4EE",
+
+  green: "#0F766E",
+  greenLight: "#D5F2EE",
+
+  red: "#C62828",
+  redLight: "#FDE2E2",
+
+  yellow: "#F4F1EC",
+  warning: "#7A2E0E",
+
+  text: "#111827",
+  muted: "#4B5563",
+  border: "#C8D7D4",
+
+  soft: "#F8FAFA",
+  soft2: "#ECF3F2",
+
+  cielo: "#CBEBE6",
+};
+
+// escala de grises (acromatopsia o pantallas sin color). Aquí no hay
+// colores que distinguir, así que todo depende del ícono y la palabra de
+// cada estado, y de que el contraste sea alto
+export const paletaGrises: Paleta = {
+  background: "#F5F5F5",
+  white: "#FFFFFF",
+
+  primary: "#374151",
+  primaryDark: "#111827",
+  primaryLight: "#E5E7EB",
+
+  accent: "#6B7280",
+
+  pink: "#6B7280",
+  pinkLight: "#F3F4F6",
+
+  green: "#374151",
+  greenLight: "#E5E7EB",
+
+  red: "#111827",
+  redLight: "#D1D5DB",
+
+  yellow: "#F3F4F6",
+  warning: "#1F2937",
+
+  text: "#111827",
+  muted: "#374151",
+  border: "#9CA3AF",
+
+  soft: "#F5F5F5",
+  soft2: "#EBEBEB",
+
+  cielo: "#E5E7EB",
+};
+
+export type ModoColor = "normal" | "rojoVerde" | "azulAmarillo" | "grises";
+export type TamanoTexto = "normal" | "grande" | "muyGrande";
+
+export const PALETAS: Record<ModoColor, Paleta> = {
+  normal: paletaNormal,
+  rojoVerde: paletaDaltonismo,
+  azulAmarillo: paletaAzulAmarillo,
+  grises: paletaGrises,
+};
+
+export const ESCALAS_TEXTO: Record<TamanoTexto, number> = {
+  normal: 1,
+  grande: 1.2,
+  muyGrande: 1.4,
+};
+
+// alto contraste: oscurezco textos y bordes, y el color principal pasa a
+// su tono oscuro para que el texto blanco encima se lea bien
+function conAltoContraste(paleta: Paleta): Paleta {
+  return {
+    ...paleta,
+    background: "#FFFFFF",
+    primary: paleta.primaryDark,
+    text: "#000000",
+    muted: "#1F2937",
+    border: "#4B5563",
+    warning: "#3B1F00",
+  };
+}
+
 // colors lo dejo exportado por si alguna pantalla lo ocupa; cambia junto
 // con el tema
 export const colors: Paleta = { ...paletaNormal };
@@ -1788,6 +1888,61 @@ function crearEstilos(colors: Paleta, escala: number) {
       paddingHorizontal: 9,
       paddingVertical: 3,
     },
+    // botones de cada respuesta de Pedi (escuchar y reportar)
+    chatAccionesFila: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 6,
+      marginTop: 8,
+    },
+    chatAccion: {
+      borderRadius: 14,
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+      backgroundColor: colors.soft2,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    chatAccionActiva: {
+      backgroundColor: colors.primaryDark,
+      borderColor: colors.primaryDark,
+    },
+    chatAccionTexto: {
+      fontSize: t(12),
+      fontWeight: "800",
+      color: colors.primaryDark,
+    },
+    chatAccionTextoActiva: {
+      color: colors.white,
+    },
+    // preguntas de seguimiento debajo de la última respuesta
+    chatSeguimiento: {
+      marginLeft: 40,
+      marginBottom: 10,
+    },
+    chatSeguimientoTitulo: {
+      fontSize: t(12),
+      fontWeight: "900",
+      color: colors.muted,
+      marginBottom: 6,
+    },
+    chatSeguimientoLista: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    // botón para que Pedi se quede quieto
+    chatBotonQuieto: {
+      backgroundColor: colors.primaryDark,
+      borderRadius: 16,
+      paddingVertical: 6,
+      paddingHorizontal: 10,
+    },
+    chatBotonQuietoTexto: {
+      fontSize: t(12),
+      fontWeight: "800",
+      color: colors.white,
+    },
     // temas grandes del inicio (botones tipo juguete, con el borde de abajo
     // más grueso para que parezcan teclas)
     chatTemas: {
@@ -1906,11 +2061,16 @@ function crearEstilos(colors: Paleta, escala: number) {
 
 export const globalStyles = crearEstilos(paletaNormal, 1);
 
-// esta la llama el index cuando cambian las opciones de accesibilidad.
+// esta la llama el contexto de accesibilidad cuando cambian las opciones.
 // Reemplaza el contenido de colors y globalStyles (mismo objeto), y luego
 // el index vuelve a montar la pantalla para que tome los estilos nuevos
-export function aplicarTema(daltonismo: boolean, textoGrande: boolean) {
-  const paleta = daltonismo ? paletaDaltonismo : paletaNormal;
+export function aplicarTema(
+  modoColor: ModoColor,
+  tamanoTexto: TamanoTexto,
+  altoContraste: boolean
+) {
+  const base = PALETAS[modoColor] || paletaNormal;
+  const paleta = altoContraste ? conAltoContraste(base) : base;
   Object.assign(colors, paleta);
-  Object.assign(globalStyles, crearEstilos(paleta, textoGrande ? 1.2 : 1));
+  Object.assign(globalStyles, crearEstilos(paleta, ESCALAS_TEXTO[tamanoTexto] || 1));
 }

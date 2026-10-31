@@ -18,9 +18,10 @@ import {
   BurbujaAnimada,
   Nube,
   PuntosEscribiendo,
-  TextoConNegritas,
 } from "../components/ChatAnimado";
+import MarkdownPedi from "../components/MarkdownPedi";
 import MascotaRobot, { EstadoMascota } from "../components/MascotaRobot";
+import { useAccesibilidad } from "../context/AccesibilidadContext";
 import { auth } from "../firebase/firebaseConfig";
 import {
   BebeFirebase,
@@ -31,6 +32,7 @@ import {
   ContextoBebe,
   MensajeChat,
   preguntarAlChatbot,
+  separarSeguimiento,
 } from "../services/chatbotService";
 import {
   analizarFotoMedicamento,
@@ -40,13 +42,15 @@ import { colors, globalStyles } from "../styles/globalStyles";
 import { Alert } from "../utils/alerta";
 import { calcularEdadEnMeses, formatearEdad } from "../utils/edad";
 import { guardarPreferencia, leerPreferencia } from "../utils/preferencias";
+import { callar, hablar } from "../utils/voz";
 
 type Props = {
   onGo: (screen: string) => void;
 };
 
-// en pantalla guardo también la foto (si el mensaje fue una foto)
-type MensajeUI = MensajeChat & { imagenUri?: string };
+// en pantalla guardo también la foto (si el mensaje fue una foto) y las
+// preguntas de seguimiento que sugiere Pedi
+type MensajeUI = MensajeChat & { imagenUri?: string; seguimiento?: string[] };
 
 type Consulta = {
   pregunta: string;
@@ -59,7 +63,7 @@ type Consulta = {
 const MENSAJE_BIENVENIDA: MensajeUI = {
   rol: "asistente",
   texto:
-    "¡Hola! 👋 Soy Pedi, el robotito ayudante de PediatriTrack Global. Pregúntame sobre vacunas, vitaminas, comida o cuidados y te respondo según la edad y las alergias del bebé. También puedo leer la caja de una medicina si me mandas una foto con 📷.\n\nRecuerda: no sustituyo a un pediatra. Si hay síntomas o una urgencia, consulta a un profesional de salud.",
+    "### ¡Hola! 👋 Soy Pedi\nEl robotito ayudante de **PediatriTrack Global**. Te puedo ayudar con:\n- **Vacunas** y vitaminas\n- **Comida** según la edad del bebé\n- **Cuidados** de todos los días\n- Leer la caja de una medicina con 📷\n\n> No sustituyo a un pediatra. Si hay síntomas o una urgencia, consulta a un profesional de salud.",
 };
 
 // cada pregunta sugerida lleva su emoji y su color, para que se vean
@@ -112,6 +116,7 @@ const PASOS_COMO_RESPONDE = [
 ];
 
 const MAX_CONSULTAS = 8;
+const CLAVE_PEDI_QUIETO = "pediatritrack_pedi_quieto";
 const CORREO_REPORTES = "alexpa.110215@gmail.com";
 
 function tieneAlergias(texto?: string): boolean {
@@ -164,9 +169,23 @@ export default function ChatbotScreen({ onGo }: Props) {
 
   // cómo se ve Pedi: saluda al entrar, piensa mientras llega la respuesta
   // y da un saltito cuando ya contestó
+  const { leerEnVozAlta } = useAccesibilidad();
   const [animoPedi, setAnimoPedi] = useState<EstadoMascota>("saludando");
   const [tipPedi, setTipPedi] = useState(0);
-  const estadoPedi: EstadoMascota = enviando ? "pensando" : animoPedi;
+  // botón para que Pedi deje de moverse cuando el usuario quiera
+  const [pediQuieto, setPediQuieto] = useState(false);
+  // qué mensaje se está leyendo en voz alta (null = ninguno)
+  const [leyendo, setLeyendo] = useState<number | null>(null);
+  const escribiendo = textoEntrada.trim().length > 0;
+  // Pedi piensa mientras llega la respuesta, mueve la boca mientras lee,
+  // y te mira mientras escribes
+  const estadoPedi: EstadoMascota = enviando
+    ? "pensando"
+    : leyendo !== null
+      ? "hablando"
+      : escribiendo && animoPedi === "normal"
+        ? "escuchando"
+        : animoPedi;
   const temporizadorPedi = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const cambiarAnimo = (animo: EstadoMascota, duracion: number) => {
@@ -177,10 +196,29 @@ export default function ChatbotScreen({ onGo }: Props) {
 
   useEffect(() => {
     cambiarAnimo("saludando", 2200);
+    leerPreferencia(CLAVE_PEDI_QUIETO).then((valor) => setPediQuieto(valor === "1"));
     return () => {
       if (temporizadorPedi.current) clearTimeout(temporizadorPedi.current);
+      callar();
     };
   }, []);
+
+  const cambiarPediQuieto = () => {
+    const nuevo = !pediQuieto;
+    setPediQuieto(nuevo);
+    guardarPreferencia(CLAVE_PEDI_QUIETO, nuevo ? "1" : "0");
+  };
+
+  // 🔊 leer o dejar de leer un mensaje
+  const leerMensaje = (indice: number, texto: string) => {
+    if (leyendo === indice) {
+      callar();
+      setLeyendo(null);
+      return;
+    }
+    setLeyendo(indice);
+    hablar(texto, () => setLeyendo((actual) => (actual === indice ? null : actual)));
+  };
 
   const tocarPedi = () => {
     setTipPedi((actual) => (actual + 1) % TIPS_PEDI.length);
@@ -260,9 +298,11 @@ export default function ChatbotScreen({ onGo }: Props) {
     bajarAlFinal();
 
     try {
-      const respuesta = await preguntarAlChatbot(historialPrevio, texto, contexto);
-      setMensajes([...conUsuario, { rol: "asistente", texto: respuesta }]);
-      cambiarAnimo("feliz", 1400);
+      const respuestaCompleta = await preguntarAlChatbot(historialPrevio, texto, contexto);
+      const { texto: respuesta, seguimiento } = separarSeguimiento(respuestaCompleta);
+      setMensajes([...conUsuario, { rol: "asistente", texto: respuesta, seguimiento }]);
+      cambiarAnimo("feliz", 1600);
+      if (leerEnVozAlta) leerMensaje(conUsuario.length, respuesta);
       guardarConsulta({
         pregunta: texto,
         respuesta,
@@ -312,7 +352,8 @@ export default function ChatbotScreen({ onGo }: Props) {
     const resultado = await analizarFotoMedicamento(foto, contexto, bebe?.nombre);
     setMensajes([...conFoto, { rol: "asistente", texto: resultado }]);
     setEnviando(false);
-    cambiarAnimo("feliz", 1400);
+    cambiarAnimo("feliz", 1600);
+    if (leerEnVozAlta) leerMensaje(conFoto.length, resultado);
     bajarAlFinal();
 
     guardarConsulta({
@@ -470,7 +511,7 @@ export default function ChatbotScreen({ onGo }: Props) {
               {/* la carita de Pedi junto a sus mensajes */}
               {!esUsuario && (
                 <View style={globalStyles.chatAvatar}>
-                  <MascotaRobot tamano={34} soloCara />
+                  <MascotaRobot tamano={34} soloCara quieto={pediQuieto} />
                 </View>
               )}
               <View
@@ -486,25 +527,64 @@ export default function ChatbotScreen({ onGo }: Props) {
                     accessibilityLabel="Foto del medicamento que enviaste"
                   />
                 )}
-                <TextoConNegritas
-                  texto={mensaje.texto}
-                  style={esUsuario ? globalStyles.chatBubbleTextUsuario : globalStyles.chatBubbleTextAsistente}
-                />
+                {esUsuario ? (
+                  <Text style={globalStyles.chatBubbleTextUsuario}>{mensaje.texto}</Text>
+                ) : (
+                  // las respuestas de Pedi vienen en Markdown
+                  <MarkdownPedi texto={mensaje.texto} style={globalStyles.chatBubbleTextAsistente} />
+                )}
 
-                {/* la bienvenida no es de la IA, esa no se reporta */}
-                {!esUsuario && indice > 0 && (
-                  <TouchableOpacity
-                    onPress={() => reportarRespuesta(mensaje.texto)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Reportar esta respuesta"
-                  >
-                    <Text style={globalStyles.chatReportar}>⚑ Reportar respuesta</Text>
-                  </TouchableOpacity>
+                {!esUsuario && (
+                  <View style={globalStyles.chatAccionesFila}>
+                    <TouchableOpacity
+                      style={[globalStyles.chatAccion, leyendo === indice && globalStyles.chatAccionActiva]}
+                      onPress={() => leerMensaje(indice, mensaje.texto)}
+                      accessibilityRole="button"
+                      accessibilityLabel={leyendo === indice ? "Dejar de leer en voz alta" : "Escuchar esta respuesta en voz alta"}
+                    >
+                      <Text style={[globalStyles.chatAccionTexto, leyendo === indice && globalStyles.chatAccionTextoActiva]}>
+                        {leyendo === indice ? "⏹ Detener" : "🔊 Escuchar"}
+                      </Text>
+                    </TouchableOpacity>
+
+                    {/* la bienvenida no es de la IA, esa no se reporta */}
+                    {indice > 0 && (
+                      <TouchableOpacity
+                        style={globalStyles.chatAccion}
+                        onPress={() => reportarRespuesta(mensaje.texto)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Reportar esta respuesta"
+                      >
+                        <Text style={globalStyles.chatAccionTexto}>⚑ Reportar</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 )}
               </View>
             </BurbujaAnimada>
           );
         })}
+
+        {/* preguntas de seguimiento que sugiere Pedi después de responder */}
+        {!enviando &&
+          mensajes.length > 1 &&
+          (mensajes[mensajes.length - 1].seguimiento?.length ?? 0) > 0 && (
+            <BurbujaAnimada style={globalStyles.chatSeguimiento}>
+              <Text style={globalStyles.chatSeguimientoTitulo}>Sigue preguntando 👇</Text>
+              <View style={globalStyles.chatSeguimientoLista}>
+                {mensajes[mensajes.length - 1].seguimiento!.map((pregunta, i) => (
+                  <BotonRebote
+                    key={pregunta}
+                    style={[globalStyles.chatSugerenciaChip, colorDeChip(["azul", "rosa", "verde"][i % 3])]}
+                    onPress={() => enviarMensaje(pregunta)}
+                    accessibilityLabel={`Preguntar: ${pregunta}`}
+                  >
+                    <Text style={globalStyles.chatSugerenciaTexto}>{pregunta}</Text>
+                  </BotonRebote>
+                ))}
+              </View>
+            </BurbujaAnimada>
+          )}
 
         {/* al inicio, temas grandes tipo botones de juguete */}
         {mensajes.length === 1 && !enviando && (
@@ -530,7 +610,7 @@ export default function ChatbotScreen({ onGo }: Props) {
         {enviando && (
           <BurbujaAnimada style={[globalStyles.chatBubbleRow, globalStyles.chatBubbleRowAsistente]}>
             <View style={globalStyles.chatAvatar}>
-              <MascotaRobot tamano={34} soloCara />
+              <MascotaRobot tamano={34} soloCara estado="pensando" quieto={pediQuieto} />
             </View>
             <View style={[globalStyles.chatBubble, globalStyles.chatBubbleAsistente]}>
               <PuntosEscribiendo />
@@ -641,7 +721,7 @@ export default function ChatbotScreen({ onGo }: Props) {
               accessibilityLabel="Pedi, el robotito del asistente"
               accessibilityHint="Toca para que Pedi te dé un consejo de cómo usar el chat"
             >
-              <MascotaRobot tamano={pantallaAncha ? 92 : 78} estado={estadoPedi} />
+              <MascotaRobot tamano={pantallaAncha ? 92 : 78} estado={estadoPedi} quieto={pediQuieto} />
             </Pressable>
 
             <View style={globalStyles.chatHeroTextos}>
@@ -651,7 +731,11 @@ export default function ChatbotScreen({ onGo }: Props) {
               <Text style={globalStyles.chatHeroSub}>
                 {enviando
                   ? "Estoy pensando tu respuesta..."
-                  : "Tu asistente virtual. Pregúntame sobre vacunas, vitaminas, comida o cuidados del bebé."}
+                  : leyendo !== null
+                    ? "Te estoy leyendo la respuesta 🔊"
+                    : escribiendo
+                      ? "Te escucho... 👀"
+                      : "Tu asistente virtual. Pregúntame sobre vacunas, vitaminas, comida o cuidados del bebé."}
               </Text>
               <View style={globalStyles.chatHeroFila}>
                 <BurbujaAnimada key={tipPedi} style={globalStyles.chatGlobito}>
@@ -659,6 +743,18 @@ export default function ChatbotScreen({ onGo }: Props) {
                     {TIPS_PEDI[tipPedi]}
                   </Text>
                 </BurbujaAnimada>
+                <TouchableOpacity
+                  style={globalStyles.chatBotonQuieto}
+                  onPress={cambiarPediQuieto}
+                  accessibilityRole="switch"
+                  accessibilityState={{ checked: !pediQuieto }}
+                  accessibilityLabel="Movimiento de Pedi"
+                  accessibilityHint={pediQuieto ? "Toca para que Pedi se vuelva a mover" : "Toca para que Pedi se quede quieto"}
+                >
+                  <Text style={globalStyles.chatBotonQuietoTexto}>
+                    {pediQuieto ? "▶ Que se mueva" : "⏸ Pedi quieto"}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
 

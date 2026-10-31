@@ -1,31 +1,23 @@
 import { ReactNode, useEffect, useRef } from "react";
 import {
-  AccessibilityInfo,
   Animated,
   Easing,
   Platform,
   Pressable,
   StyleProp,
   Text,
-  TextStyle,
   View,
   ViewStyle,
 } from "react-native";
 
 import { colors } from "../styles/globalStyles";
+import { sinMovimiento } from "../utils/movimiento";
 
 // piezas animadas del chat infantil (las separé de ChatbotScreen para que
 // esa pantalla no quedara gigante)
 
 const NATIVO = Platform.OS !== "web";
 
-// reviso una sola vez si el usuario pidió reducir movimiento
-let reducirMovimiento = false;
-AccessibilityInfo.isReduceMotionEnabled()
-  .then((valor) => {
-    reducirMovimiento = valor;
-  })
-  .catch(() => {});
 
 // ---------- burbuja que "aparece" (sube, se agranda y se hace visible) ----------
 export function BurbujaAnimada({
@@ -37,10 +29,10 @@ export function BurbujaAnimada({
   desdeDerecha?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  const entrada = useRef(new Animated.Value(reducirMovimiento ? 1 : 0)).current;
+  const entrada = useRef(new Animated.Value(sinMovimiento() ? 1 : 0)).current;
 
   useEffect(() => {
-    if (reducirMovimiento) return;
+    if (sinMovimiento()) return;
     Animated.spring(entrada, {
       toValue: 1,
       friction: 6,
@@ -77,7 +69,7 @@ export function PuntosEscribiendo() {
   ];
 
   useEffect(() => {
-    if (reducirMovimiento) return;
+    if (sinMovimiento()) return;
     const animaciones = puntos.map((valor, i) =>
       Animated.loop(
         Animated.sequence([
@@ -182,27 +174,5 @@ export function Nube({
       <View style={{ position: "absolute", bottom: alto * 0.45, left: ancho * 0.16, width: ancho * 0.36, height: ancho * 0.36, borderRadius: ancho, backgroundColor: colors.white }} />
       <View style={{ position: "absolute", bottom: alto * 0.4, left: ancho * 0.42, width: ancho * 0.44, height: ancho * 0.44, borderRadius: ancho, backgroundColor: colors.white }} />
     </View>
-  );
-}
-
-// ---------- texto con negritas ----------
-// a veces Gemini manda **palabras** con asteriscos; aquí los convierto en
-// negritas de verdad y cambio los "* " del inicio de línea por viñetas
-export function TextoConNegritas({ texto, style }: { texto: string; style?: StyleProp<TextStyle> }) {
-  const limpio = texto.replace(/^\s*[*-]\s+/gm, "• ");
-  const partes = limpio.split(/(\*\*[^*]+\*\*)/g).filter((p) => p !== "");
-
-  return (
-    <Text style={style}>
-      {partes.map((parte, i) =>
-        parte.startsWith("**") && parte.endsWith("**") ? (
-          <Text key={i} style={{ fontWeight: "900" }}>
-            {parte.slice(2, -2)}
-          </Text>
-        ) : (
-          <Text key={i}>{parte.replace(/\*\*/g, "")}</Text>
-        )
-      )}
-    </Text>
   );
 }
