@@ -147,7 +147,7 @@ export default function DocumentsScreen({ onGo }: Props) {
         "Error",
         error?.code === "storage/unauthorized"
           ? "Firebase no aceptó el archivo. Debe ser PDF o Word y pesar menos de 15 MB."
-          : "No se pudo guardar el documento en Firebase."
+          : `No se pudo guardar el documento en Firebase. (Detalle: ${error?.code || error?.message || "desconocido"})`
       );
     } finally {
       setGuardando(false);
@@ -251,7 +251,7 @@ export default function DocumentsScreen({ onGo }: Props) {
         "Error",
         error?.code === "storage/unauthorized"
           ? "Firebase no aceptó el archivo. Debe ser PDF o Word y pesar menos de 15 MB."
-          : "No se pudo actualizar el archivo."
+          : `No se pudo actualizar el archivo. (Detalle: ${error?.code || error?.message || "desconocido"})`
       );
     } finally {
       setProcesandoId(null);
