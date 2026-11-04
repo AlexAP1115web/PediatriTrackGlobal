@@ -91,7 +91,7 @@ const TIPS_PEDI = [
   "¡Hola! Tócame cuando quieras 😄",
   "Toca una pregunta de colores y te respondo",
   "Con 📷 puedo leer la caja de una medicina",
-  "Arriba eliges al bebé y yo cuido sus alergias",
+  "Aquí abajo eliges al bebé y yo cuido sus alergias",
   "Si es una urgencia, ¡llama al pediatra!",
 ];
 
@@ -295,6 +295,29 @@ export default function ChatbotScreen({ onGo }: Props) {
   const bajarAlFinal = () =>
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
 
+  // cuando llega la respuesta de Pedi no bajo hasta el final (así solo se
+  // veían las últimas líneas): llevo la pantalla al INICIO de la respuesta
+  // para que se lea de arriba hacia abajo. Para eso guardo dónde quedó la
+  // tarjeta del chat y la lista de mensajes dentro del scroll
+  const respuestaPorMostrar = useRef<number | null>(null);
+  const yTarjeta = useRef(0);
+  const yLista = useRef(0);
+
+  const mostrarRespuesta = (indice: number) => {
+    respuestaPorMostrar.current = indice;
+  };
+
+  const alMedirMensaje = (indice: number, y: number) => {
+    if (respuestaPorMostrar.current !== indice) return;
+    respuestaPorMostrar.current = null;
+    // en celular todo va en un solo scroll (encabezado + tarjeta + mensajes)
+    const inicio = (pantallaAncha ? 0 : yTarjeta.current) + yLista.current + y;
+    setTimeout(
+      () => scrollRef.current?.scrollTo({ y: Math.max(0, inicio - 12), animated: true }),
+      60
+    );
+  };
+
   const enviarMensaje = async (textoDirecto?: string) => {
     const texto = (textoDirecto ?? textoEntrada).trim();
     if (!texto || enviando) return;
@@ -314,6 +337,7 @@ export default function ChatbotScreen({ onGo }: Props) {
       const respuestaCompleta = await preguntarAlChatbot(historialPrevio, texto, contexto);
       const { texto: respuesta, seguimiento } = separarSeguimiento(respuestaCompleta);
       setMensajes([...conUsuario, { rol: "asistente", texto: respuesta, seguimiento }]);
+      mostrarRespuesta(conUsuario.length);
       cambiarAnimo("feliz", 3200);
       if (leerEnVozAlta) leerMensaje(conUsuario.length, respuesta);
       guardarConsulta({
@@ -328,9 +352,9 @@ export default function ChatbotScreen({ onGo }: Props) {
         ...conUsuario,
         { rol: "asistente", texto: "Ocurrió un error inesperado. Intenta de nuevo en un momento." },
       ]);
+      mostrarRespuesta(conUsuario.length);
     } finally {
       setEnviando(false);
-      bajarAlFinal();
     }
   };
 
@@ -364,10 +388,10 @@ export default function ChatbotScreen({ onGo }: Props) {
 
     const resultado = await analizarFotoMedicamento(foto, contexto, bebe?.nombre);
     setMensajes([...conFoto, { rol: "asistente", texto: resultado }]);
+    mostrarRespuesta(conFoto.length);
     setEnviando(false);
     cambiarAnimo("feliz", 3200);
     if (leerEnVozAlta) leerMensaje(conFoto.length, resultado);
-    bajarAlFinal();
 
     guardarConsulta({
       pregunta: `Foto: ${resultado.split("\n")[0].replace("📦 ", "")}`,
@@ -385,7 +409,7 @@ export default function ChatbotScreen({ onGo }: Props) {
       { rol: "usuario", texto: consulta.pregunta },
       { rol: "asistente", texto: consulta.respuesta },
     ]);
-    bajarAlFinal();
+    mostrarRespuesta(mensajes.length + 1);
   };
 
   // ---------- piezas de la pantalla ----------
@@ -444,9 +468,9 @@ export default function ChatbotScreen({ onGo }: Props) {
     </View>
   );
 
-  const chat = (
-    <View style={[globalStyles.chatPrincipalCard, { flex: 1 }]}>
-      {/* bebé elegido y sus alergias, como el paciente en MediCore */}
+  // bebé elegido y sus alergias, como el paciente en MediCore
+  const contextoBebe = (
+    <>
       <View style={globalStyles.chatContextoFila}>
         <Text style={globalStyles.chatContextoEtiqueta}>Bebé</Text>
         {/* los chips se acomodan en varias filas si no caben, así no se
@@ -457,13 +481,14 @@ export default function ChatbotScreen({ onGo }: Props) {
             return (
               <TouchableOpacity
                 key={item.id || item.nombre}
-                style={[globalStyles.chipButton, elegido && globalStyles.chipButtonActive, { marginBottom: 6 }]}
+                // con nombres largos el chip baja de línea en vez de salirse
+                style={[globalStyles.chipButton, elegido && globalStyles.chipButtonActive, { marginBottom: 6, maxWidth: "100%" }]}
                 onPress={() => setBebe(item)}
                 accessibilityRole="button"
                 accessibilityState={{ selected: elegido }}
                 accessibilityLabel={`Usar los datos de ${item.nombre}`}
               >
-                <Text style={[globalStyles.chipText, elegido && globalStyles.chipTextActive]}>
+                <Text style={[globalStyles.chipText, elegido && globalStyles.chipTextActive, { flexShrink: 1 }]}>
                   {elegido ? "✓ " : ""}
                   {item.nombre}
                 </Text>
@@ -498,23 +523,23 @@ export default function ChatbotScreen({ onGo }: Props) {
           </Text>
         </View>
       )}
+    </>
+  );
 
-      {/* el historial del chat es el único ScrollView vertical */}
-      <ScrollView
-        ref={scrollRef}
-        style={globalStyles.chatMessagesArea}
-        contentContainerStyle={{ padding: 12 }}
-        showsVerticalScrollIndicator={false}
-        // al inicio no bajo, para que se vea la bienvenida y los temas
-        onContentSizeChange={() => {
-          if (mensajes.length > 1) bajarAlFinal();
-        }}
-      >
-        {mensajes.map((mensaje, indice) => {
-          const esUsuario = mensaje.rol === "usuario";
-          return (
+  // los mensajes, las preguntas de seguimiento, los temas del inicio y los
+  // puntitos de "escribiendo". En celular lleva su propio fondo y espacio
+  const listaMensajes = (
+    <View
+      style={!pantallaAncha && globalStyles.chatMensajesMovil}
+      onLayout={(e) => (yLista.current = e.nativeEvent.layout.y)}
+    >
+      {mensajes.map((mensaje, indice) => {
+        const esUsuario = mensaje.rol === "usuario";
+        return (
+          // mido cada mensaje para poder llevar la pantalla al inicio de
+          // la respuesta nueva
+          <View key={indice} onLayout={(e) => alMedirMensaje(indice, e.nativeEvent.layout.y)}>
             <BurbujaAnimada
-              key={indice}
               desdeDerecha={esUsuario}
               style={[
                 globalStyles.chatBubbleRow,
@@ -587,76 +612,77 @@ export default function ChatbotScreen({ onGo }: Props) {
                 )}
               </View>
             </BurbujaAnimada>
-          );
-        })}
+          </View>
+        );
+      })}
 
-        {/* preguntas de seguimiento que sugiere Pedi después de responder */}
-        {!enviando &&
-          mensajes.length > 1 &&
-          (mensajes[mensajes.length - 1].seguimiento?.length ?? 0) > 0 && (
-            <BurbujaAnimada style={globalStyles.chatSeguimiento}>
-              <Text style={globalStyles.chatSeguimientoTitulo}>Sigue preguntando 👇</Text>
-              <View style={globalStyles.chatSeguimientoLista}>
-                {mensajes[mensajes.length - 1].seguimiento!.map((pregunta, i) => (
-                  <BotonRebote
-                    key={pregunta}
-                    style={[globalStyles.chatSugerenciaChip, colorDeChip(["azul", "rosa", "verde"][i % 3])]}
-                    onPress={() => enviarMensaje(pregunta)}
-                    accessibilityLabel={`Preguntar: ${pregunta}`}
-                  >
-                    <Text style={globalStyles.chatSugerenciaTexto}>{pregunta}</Text>
-                  </BotonRebote>
-                ))}
-              </View>
-            </BurbujaAnimada>
-          )}
-
-        {/* al inicio, temas grandes tipo botones de juguete */}
-        {mensajes.length === 1 && !enviando && (
-          <BurbujaAnimada style={globalStyles.chatTemas}>
-            <Text style={globalStyles.chatTemasTitulo}>¿De qué quieres platicar?</Text>
-            <View style={globalStyles.chatTemasGrid}>
-              {TEMAS_INICIO.map((tema) => (
+      {/* preguntas de seguimiento que sugiere Pedi después de responder */}
+      {!enviando &&
+        mensajes.length > 1 &&
+        (mensajes[mensajes.length - 1].seguimiento?.length ?? 0) > 0 && (
+          <BurbujaAnimada style={globalStyles.chatSeguimiento}>
+            <Text style={globalStyles.chatSeguimientoTitulo}>Sigue preguntando 👇</Text>
+            <View style={globalStyles.chatSeguimientoLista}>
+              {mensajes[mensajes.length - 1].seguimiento!.map((pregunta, i) => (
                 <BotonRebote
-                  key={tema.titulo}
-                  estiloExterior={{ width: pantallaAncha ? "31.5%" : "47.5%" }}
-                  style={[globalStyles.chatTema, colorDeChip(tema.color)]}
-                  onPress={() => (tema.pregunta ? enviarMensaje(tema.pregunta) : enviarFoto())}
-                  accessibilityLabel={tema.pregunta ? `Preguntar: ${tema.pregunta}` : "Tomar foto de una medicina"}
+                  key={pregunta}
+                  style={[globalStyles.chatSugerenciaChip, colorDeChip(["azul", "rosa", "verde"][i % 3])]}
+                  onPress={() => enviarMensaje(pregunta)}
+                  accessibilityLabel={`Preguntar: ${pregunta}`}
                 >
-                  <Text style={globalStyles.chatTemaEmoji}>{tema.emoji}</Text>
-                  <Text style={globalStyles.chatTemaTexto}>{tema.titulo}</Text>
+                  <Text style={globalStyles.chatSugerenciaTexto}>{pregunta}</Text>
                 </BotonRebote>
               ))}
             </View>
           </BurbujaAnimada>
         )}
 
-        {enviando && (
-          <BurbujaAnimada style={[globalStyles.chatBubbleRow, globalStyles.chatBubbleRowAsistente]}>
-            <View style={globalStyles.chatAvatar}>
-              <MascotaRobot tamano={34} soloCara estado="pensando" quieto={pediQuieto} />
-            </View>
-            <View style={[globalStyles.chatBubble, globalStyles.chatBubbleAsistente]}>
-              <PuntosEscribiendo />
-            </View>
-          </BurbujaAnimada>
-        )}
-      </ScrollView>
+      {/* al inicio, temas grandes tipo botones de juguete */}
+      {mensajes.length === 1 && !enviando && (
+        <BurbujaAnimada style={globalStyles.chatTemas}>
+          <Text style={globalStyles.chatTemasTitulo}>¿De qué quieres platicar?</Text>
+          <View style={globalStyles.chatTemasGrid}>
+            {TEMAS_INICIO.map((tema) => (
+              <BotonRebote
+                key={tema.titulo}
+                estiloExterior={{ width: pantallaAncha ? "31.5%" : "47.5%" }}
+                style={[globalStyles.chatTema, colorDeChip(tema.color)]}
+                onPress={() => (tema.pregunta ? enviarMensaje(tema.pregunta) : enviarFoto())}
+                accessibilityLabel={tema.pregunta ? `Preguntar: ${tema.pregunta}` : "Tomar foto de una medicina"}
+              >
+                <Text style={globalStyles.chatTemaEmoji}>{tema.emoji}</Text>
+                <Text style={globalStyles.chatTemaTexto}>{tema.titulo}</Text>
+              </BotonRebote>
+            ))}
+          </View>
+        </BurbujaAnimada>
+      )}
 
-      {/* preguntas sugeridas (cuando ya empezó la plática; antes están
-      los temas grandes) */}
-      {mensajes.length > 1 && (
-      <>
+      {enviando && (
+        <BurbujaAnimada style={[globalStyles.chatBubbleRow, globalStyles.chatBubbleRowAsistente]}>
+          <View style={globalStyles.chatAvatar}>
+            <MascotaRobot tamano={34} soloCara estado="pensando" quieto={pediQuieto} />
+          </View>
+          <View style={[globalStyles.chatBubble, globalStyles.chatBubbleAsistente]}>
+            <PuntosEscribiendo />
+          </View>
+        </BurbujaAnimada>
+      )}
+    </View>
+  );
+
+  // preguntas sugeridas (cuando ya empezó la plática; antes están los
+  // temas grandes)
+  const sugerencias = mensajes.length > 1 && (
+    <>
       <Text style={globalStyles.chatSugerenciasTitulo}>
         💡 Toca una pregunta (desliza para ver más →)
       </Text>
       <ScrollView
         horizontal
-        showsHorizontalScrollIndicator
-        persistentScrollbar
+        showsHorizontalScrollIndicator={false}
         style={globalStyles.chatSugerencias}
-        contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 8, alignItems: "center" }}
+        contentContainerStyle={{ paddingHorizontal: 10, paddingBottom: 10, alignItems: "center" }}
       >
         {PREGUNTAS_SUGERIDAS.map((sugerencia) => (
           <BotonRebote
@@ -672,44 +698,159 @@ export default function ChatbotScreen({ onGo }: Props) {
           </BotonRebote>
         ))}
       </ScrollView>
-      </>
-      )}
+    </>
+  );
 
-      {/* entrada: foto + texto + enviar */}
-      <View style={globalStyles.chatEntradaFila}>
-        <BotonRebote
-          style={globalStyles.chatCamaraBoton}
-          onPress={enviarFoto}
-          disabled={enviando}
-          accessibilityLabel="Tomar foto de un medicamento"
-          accessibilityHint="La IA lee la caja y la compara con las alergias del bebé"
+  // entrada: foto + texto + enviar
+  const entrada = (
+    <View style={globalStyles.chatEntradaFila}>
+      <BotonRebote
+        style={globalStyles.chatCamaraBoton}
+        onPress={enviarFoto}
+        disabled={enviando}
+        accessibilityLabel="Tomar foto de un medicamento"
+        accessibilityHint="La IA lee la caja y la compara con las alergias del bebé"
+      >
+        <Text style={globalStyles.chatCamaraIcono}>📷</Text>
+      </BotonRebote>
+
+      <TextInput
+        placeholder="Escribe tu pregunta..."
+        placeholderTextColor={colors.muted}
+        value={textoEntrada}
+        onChangeText={setTextoEntrada}
+        style={globalStyles.chatEntradaInput}
+        multiline
+        accessibilityLabel="Escribe tu pregunta para el asistente virtual"
+        onSubmitEditing={() => enviarMensaje()}
+      />
+
+      <BotonRebote
+        style={[
+          globalStyles.chatEnviarBoton,
+          (enviando || !textoEntrada.trim()) && globalStyles.chatSendButtonDisabled,
+        ]}
+        onPress={() => enviarMensaje()}
+        disabled={enviando || !textoEntrada.trim()}
+        accessibilityLabel="Enviar mensaje"
+      >
+        <Text style={globalStyles.chatEnviarTexto}>➤</Text>
+      </BotonRebote>
+    </View>
+  );
+
+  // mientras Pedi piensa, bajo para que se vea tu pregunta y los puntitos
+  const alCrecerContenido = () => {
+    if (enviando) bajarAlFinal();
+  };
+
+  // encabezado: el cielo donde vive Pedi. Si lo tocas saluda, brinca y te
+  // da un tip. En celular es más bajito para dejarle lugar a la plática
+  const encabezado = (
+    <View style={globalStyles.chatEncabezado}>
+      <TouchableOpacity
+        onPress={() => onGo("dashboard")}
+        accessibilityRole="button"
+        accessibilityLabel="Volver al inicio"
+      >
+        <Text style={globalStyles.privacyLinkText}>← Volver al inicio</Text>
+      </TouchableOpacity>
+
+      <View style={[globalStyles.chatHero, !pantallaAncha && globalStyles.chatHeroMovil]}>
+        {/* en celular las nubes van abajo, para que no tapen el nombre */}
+        {pantallaAncha ? (
+          <>
+            <Nube ancho={170} posicion={{ left: -18, bottom: -26 }} />
+            <Nube ancho={70} posicion={{ right: 18, top: 10 }} opacidad={0.85} />
+            <Nube ancho={46} posicion={{ right: 96, top: 34 }} opacidad={0.6} />
+          </>
+        ) : (
+          <>
+            <Nube ancho={104} posicion={{ left: -20, bottom: -24 }} />
+            <Nube ancho={56} posicion={{ right: -10, bottom: -6 }} opacidad={0.7} />
+          </>
+        )}
+
+        <Pressable
+          onPress={tocarPedi}
+          style={{ marginLeft: 4 }}
+          accessibilityRole="button"
+          accessibilityLabel="Pedi, el robotito del asistente"
+          accessibilityHint="Toca para que Pedi te dé un consejo de cómo usar el chat"
         >
-          <Text style={globalStyles.chatCamaraIcono}>📷</Text>
-        </BotonRebote>
+          <MascotaRobot tamano={pantallaAncha ? 104 : 70} estado={estadoPedi} quieto={pediQuieto} />
+        </Pressable>
 
-        <TextInput
-          placeholder="Escribe tu pregunta..."
-          placeholderTextColor={colors.muted}
-          value={textoEntrada}
-          onChangeText={setTextoEntrada}
-          style={globalStyles.chatEntradaInput}
-          multiline
-          accessibilityLabel="Escribe tu pregunta para el asistente virtual"
-          onSubmitEditing={() => enviarMensaje()}
-        />
+        <View style={globalStyles.chatHeroTextos}>
+          <Text
+            style={[globalStyles.chatHeroTitulo, !pantallaAncha && globalStyles.chatHeroTituloMovil]}
+            accessibilityRole="header"
+          >
+            Pedi
+          </Text>
+          <Text style={globalStyles.chatHeroSub}>
+            {enviando
+              ? "Estoy pensando tu respuesta..."
+              : leyendo !== null
+                ? "Te estoy leyendo la respuesta 🔊"
+                : escribiendo
+                  ? "Te escucho... 👀"
+                  : pantallaAncha
+                    ? "Tu asistente virtual. Pregúntame sobre vacunas, vitaminas, comida o cuidados del bebé."
+                    : "Pregúntame de vacunas, vitaminas, comida o cuidados del bebé."}
+          </Text>
+          <View style={globalStyles.chatHeroFila}>
+            <BurbujaAnimada key={tipPedi} style={globalStyles.chatGlobito}>
+              <Text style={globalStyles.chatGlobitoTexto} accessibilityLiveRegion="polite">
+                {TIPS_PEDI[tipPedi]}
+              </Text>
+            </BurbujaAnimada>
+            <TouchableOpacity
+              style={globalStyles.chatBotonQuieto}
+              onPress={cambiarPediQuieto}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: !pediQuieto }}
+              accessibilityLabel="Movimiento de Pedi"
+              accessibilityHint={pediQuieto ? "Toca para que Pedi se vuelva a mover" : "Toca para que Pedi se quede quieto"}
+            >
+              <Text style={globalStyles.chatBotonQuietoTexto}>
+                {pediQuieto ? "▶ Que se mueva" : "⏸ Pedi quieto"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
-        <BotonRebote
-          style={[
-            globalStyles.chatEnviarBoton,
-            (enviando || !textoEntrada.trim()) && globalStyles.chatSendButtonDisabled,
-          ]}
-          onPress={() => enviarMensaje()}
-          disabled={enviando || !textoEntrada.trim()}
-          accessibilityLabel="Enviar mensaje"
-        >
-          <Text style={globalStyles.chatEnviarTexto}>➤</Text>
-        </BotonRebote>
+        <View style={globalStyles.chatInsigniaHero}>
+          <Text style={globalStyles.chatInsigniaTexto}>✨ Con Gemini</Text>
+        </View>
       </View>
+
+      {/* en celular la info lateral va en botones para no saturar (si no
+      caben en una fila, bajan a la siguiente) */}
+      {!pantallaAncha && (
+        <View style={globalStyles.chatPanelFila}>
+          <TouchableOpacity
+            style={[globalStyles.chipButton, panel === "como" && globalStyles.chipButtonActive, { marginBottom: 0 }]}
+            onPress={() => setPanel(panel === "como" ? "ninguno" : "como")}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: panel === "como" }}
+          >
+            <Text style={[globalStyles.chipText, panel === "como" && globalStyles.chipTextActive]}>
+              ℹ️ Cómo responde
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[globalStyles.chipButton, panel === "historial" && globalStyles.chipButtonActive, { marginBottom: 0 }]}
+            onPress={() => setPanel(panel === "historial" ? "ninguno" : "historial")}
+            accessibilityRole="button"
+            accessibilityState={{ expanded: panel === "historial" }}
+          >
+            <Text style={[globalStyles.chipText, panel === "historial" && globalStyles.chipTextActive]}>
+              🕘 Últimas consultas
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 
@@ -719,118 +860,64 @@ export default function ChatbotScreen({ onGo }: Props) {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View
-        style={[globalStyles.container, { flex: 1, maxWidth: 1180 }]}
+        style={[
+          globalStyles.container,
+          { flex: 1, maxWidth: 1180 },
+          !pantallaAncha && { paddingHorizontal: 12, paddingTop: 6, paddingBottom: 8 },
+        ]}
         onLayout={(e) => setAnchoDisponible(e.nativeEvent.layout.width)}
       >
-        {/* encabezado */}
-        <View style={globalStyles.chatEncabezado}>
-          <TouchableOpacity
-            onPress={() => onGo("dashboard")}
-            accessibilityRole="button"
-            accessibilityLabel="Volver al inicio"
-          >
-            <Text style={globalStyles.privacyLinkText}>← Volver al inicio</Text>
-          </TouchableOpacity>
-
-          {/* encabezado: el cielo donde vive Pedi. Si lo tocas saluda,
-          brinca y te da un tip */}
-          <View style={globalStyles.chatHero}>
-            <Nube ancho={pantallaAncha ? 170 : 130} posicion={{ left: -18, bottom: -26 }} />
-            <Nube ancho={70} posicion={{ right: 18, top: 10 }} opacidad={0.85} />
-            <Nube ancho={46} posicion={{ right: 96, top: 34 }} opacidad={0.6} />
-
-            <Pressable
-              onPress={tocarPedi}
-              style={{ marginLeft: 4 }}
-              accessibilityRole="button"
-              accessibilityLabel="Pedi, el robotito del asistente"
-              accessibilityHint="Toca para que Pedi te dé un consejo de cómo usar el chat"
-            >
-              <MascotaRobot tamano={pantallaAncha ? 104 : 86} estado={estadoPedi} quieto={pediQuieto} />
-            </Pressable>
-
-            <View style={globalStyles.chatHeroTextos}>
-              <Text style={globalStyles.chatHeroTitulo} accessibilityRole="header">
-                Pedi
-              </Text>
-              <Text style={globalStyles.chatHeroSub}>
-                {enviando
-                  ? "Estoy pensando tu respuesta..."
-                  : leyendo !== null
-                    ? "Te estoy leyendo la respuesta 🔊"
-                    : escribiendo
-                      ? "Te escucho... 👀"
-                      : "Tu asistente virtual. Pregúntame sobre vacunas, vitaminas, comida o cuidados del bebé."}
-              </Text>
-              <View style={globalStyles.chatHeroFila}>
-                <BurbujaAnimada key={tipPedi} style={globalStyles.chatGlobito}>
-                  <Text style={globalStyles.chatGlobitoTexto} accessibilityLiveRegion="polite">
-                    {TIPS_PEDI[tipPedi]}
-                  </Text>
-                </BurbujaAnimada>
-                <TouchableOpacity
-                  style={globalStyles.chatBotonQuieto}
-                  onPress={cambiarPediQuieto}
-                  accessibilityRole="switch"
-                  accessibilityState={{ checked: !pediQuieto }}
-                  accessibilityLabel="Movimiento de Pedi"
-                  accessibilityHint={pediQuieto ? "Toca para que Pedi se vuelva a mover" : "Toca para que Pedi se quede quieto"}
-                >
-                  <Text style={globalStyles.chatBotonQuietoTexto}>
-                    {pediQuieto ? "▶ Que se mueva" : "⏸ Pedi quieto"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={globalStyles.chatInsigniaHero}>
-              <Text style={globalStyles.chatInsigniaTexto}>✨ Con Gemini</Text>
-            </View>
-          </View>
-
-          {/* en celular la info lateral va en botones para no saturar */}
-          {!pantallaAncha && (
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 8 }}>
-              <TouchableOpacity
-                style={[globalStyles.chipButton, panel === "como" && globalStyles.chipButtonActive, { marginBottom: 0 }]}
-                onPress={() => setPanel(panel === "como" ? "ninguno" : "como")}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: panel === "como" }}
-              >
-                <Text style={[globalStyles.chipText, panel === "como" && globalStyles.chipTextActive]}>
-                  ℹ️ Cómo responde
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[globalStyles.chipButton, panel === "historial" && globalStyles.chipButtonActive, { marginBottom: 0 }]}
-                onPress={() => setPanel(panel === "historial" ? "ninguno" : "historial")}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: panel === "historial" }}
-              >
-                <Text style={[globalStyles.chipText, panel === "historial" && globalStyles.chipTextActive]}>
-                  🕘 Últimas consultas
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        {!pantallaAncha && panel !== "ninguno" && (
-          <ScrollView style={{ maxHeight: 260, marginBottom: 10 }}>
-            {panel === "como" ? tarjetaComoResponde : tarjetaHistorial}
-          </ScrollView>
-        )}
-
         {pantallaAncha ? (
-          <View style={{ flex: 1, flexDirection: "row", gap: 16 }}>
-            <View style={{ flex: 1 }}>{chat}</View>
-            <ScrollView style={{ width: 300, flexGrow: 0 }}>
-              {tarjetaComoResponde}
-              {tarjetaHistorial}
-            </ScrollView>
-          </View>
+          // computadora o tablet: el chat a la izquierda con su propio
+          // scroll y la info a la derecha
+          <>
+            {encabezado}
+            <View style={{ flex: 1, flexDirection: "row", gap: 16 }}>
+              <View style={[globalStyles.chatPrincipalCard, { flex: 1 }]}>
+                {contextoBebe}
+                <ScrollView
+                  ref={scrollRef}
+                  style={globalStyles.chatMessagesArea}
+                  contentContainerStyle={{ padding: 12 }}
+                  showsVerticalScrollIndicator={false}
+                  onContentSizeChange={alCrecerContenido}
+                >
+                  {listaMensajes}
+                </ScrollView>
+                {sugerencias}
+                {entrada}
+              </View>
+              <ScrollView style={{ width: 300, flexGrow: 0 }}>
+                {tarjetaComoResponde}
+                {tarjetaHistorial}
+              </ScrollView>
+            </View>
+          </>
         ) : (
-          chat
+          // celular: antes el encabezado, el bebé y las sugerencias se
+          // comían la pantalla y la plática quedaba aplastada. Ahora todo
+          // va en un solo scroll y abajo solo queda fija la caja de escribir
+          <>
+            <ScrollView
+              ref={scrollRef}
+              style={{ flex: 1 }}
+              contentContainerStyle={{ paddingBottom: 12 }}
+              keyboardShouldPersistTaps="handled"
+              onContentSizeChange={alCrecerContenido}
+            >
+              {encabezado}
+              {panel !== "ninguno" && (panel === "como" ? tarjetaComoResponde : tarjetaHistorial)}
+              <View
+                style={globalStyles.chatPrincipalCard}
+                onLayout={(e) => (yTarjeta.current = e.nativeEvent.layout.y)}
+              >
+                {contextoBebe}
+                {listaMensajes}
+                {sugerencias}
+              </View>
+            </ScrollView>
+            <View style={globalStyles.chatEntradaMovil}>{entrada}</View>
+          </>
         )}
       </View>
     </KeyboardAvoidingView>

@@ -1,5 +1,4 @@
 import * as DocumentPicker from "expo-document-picker";
-import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
 import {
   ScrollView,
@@ -22,6 +21,7 @@ import {
   subirArchivoStorage,
 } from "../firebase/firebaseService";
 import { globalStyles } from "../styles/globalStyles";
+import { abrirDocumento, tipoDeArchivo, TIPOS_DOCUMENTO } from "../utils/abrirDocumento";
 import { Alert } from "../utils/alerta";
 
 type Props = {
@@ -40,6 +40,8 @@ export default function DocumentsScreen({ onGo }: Props) {
   const [documentos, setDocumentos] = useState<DocumentoFirebase[]>([]);
   const [guardando, setGuardando] = useState(false);
   const [procesandoId, setProcesandoId] = useState<string | null>(null);
+  // qué documento se está descargando para abrirlo
+  const [abriendoId, setAbriendoId] = useState<string | null>(null);
 
   const tiposDocumento = [
     "Acta",
@@ -66,7 +68,8 @@ export default function DocumentsScreen({ onGo }: Props) {
   const seleccionarArchivo = async () => {
     try {
       const resultado = await DocumentPicker.getDocumentAsync({
-        type: "application/pdf",
+        // se aceptan PDF y Word
+        type: TIPOS_DOCUMENTO,
         copyToCacheDirectory: true,
       });
 
@@ -78,7 +81,7 @@ export default function DocumentsScreen({ onGo }: Props) {
       setArchivoSeleccionado(archivo);
       setNombreArchivo(archivo.name);
     } catch (error) {
-      console.log("Error al seleccionar PDF:", error);
+      console.log("Error al seleccionar el archivo:", error);
       Alert.alert("Error", "No se pudo abrir el selector de archivos.");
     }
   };
@@ -97,11 +100,14 @@ export default function DocumentsScreen({ onGo }: Props) {
     try {
       let urlArchivo: string | undefined;
       let rutaStorage: string | undefined;
+      let tipoArchivo: string | undefined;
 
       if (archivoSeleccionado) {
+        tipoArchivo = tipoDeArchivo(archivoSeleccionado.name, archivoSeleccionado.mimeType);
         const subida = await subirArchivoStorage(
           archivoSeleccionado.uri,
-          archivoSeleccionado.name
+          archivoSeleccionado.name,
+          tipoArchivo
         );
         urlArchivo = subida.url;
         rutaStorage = subida.ruta;
@@ -117,6 +123,7 @@ export default function DocumentsScreen({ onGo }: Props) {
         estado: "Guardado",
         urlArchivo,
         rutaStorage,
+        tipoArchivo,
       });
 
       await cargarDocumentos();
@@ -130,15 +137,17 @@ export default function DocumentsScreen({ onGo }: Props) {
       Alert.alert(
         "Documento guardado",
         urlArchivo
-          ? "El documento y su PDF fueron guardados correctamente."
+          ? "El documento y su archivo fueron guardados correctamente."
           : "La información del documento fue registrada en Firebase."
       );
-    } catch (error) {
+    } catch (error: any) {
       console.log("Error al guardar documento:", error);
 
       Alert.alert(
         "Error",
-        "No se pudo guardar el documento en Firebase."
+        error?.code === "storage/unauthorized"
+          ? "Firebase no aceptó el archivo. Debe ser PDF o Word y pesar menos de 15 MB."
+          : "No se pudo guardar el documento en Firebase."
       );
     } finally {
       setGuardando(false);
@@ -149,16 +158,31 @@ export default function DocumentsScreen({ onGo }: Props) {
     if (!documento.urlArchivo) {
       Alert.alert(
         "Sin archivo",
-        "Aún no se ha subido un PDF para este documento."
+        "Aún no se ha subido un archivo para este documento."
       );
       return;
     }
 
+    setAbriendoId(documento.id || documento.nombre);
     try {
-      await WebBrowser.openBrowserAsync(documento.urlArchivo);
-    } catch (error) {
-      console.log("Error al abrir PDF:", error);
-      Alert.alert("Error", "No se pudo abrir el PDF.");
+      await abrirDocumento(documento.urlArchivo, documento.nombreArchivo, documento.tipoArchivo);
+    } catch (error: any) {
+      console.log("Error al abrir el documento:", error);
+      if (error?.message === "ARCHIVO_VACIO") {
+        Alert.alert(
+          "Archivo vacío",
+          "Este archivo se subió vacío. Vuelve a subirlo con el botón \"Actualizar archivo\"."
+        );
+      } else if (error?.message === "SIN_APP") {
+        Alert.alert(
+          "Sin app para abrirlo",
+          "Tu celular no tiene una app para este tipo de archivo, así que lo abrí en el navegador para que se descargue. Puedes instalar Google Drive o un lector de PDF."
+        );
+      } else {
+        Alert.alert("Error", "No se pudo abrir el archivo. Revisa tu conexión a internet.");
+      }
+    } finally {
+      setAbriendoId(null);
     }
   };
 
@@ -166,7 +190,7 @@ export default function DocumentsScreen({ onGo }: Props) {
     if (!documento.urlArchivo) {
       Alert.alert(
         "Sin archivo",
-        "Aún no se ha subido un PDF para este documento."
+        "Aún no se ha subido un archivo para este documento."
       );
       return;
     }
@@ -186,7 +210,8 @@ export default function DocumentsScreen({ onGo }: Props) {
 
     try {
       const resultado = await DocumentPicker.getDocumentAsync({
-        type: "application/pdf",
+        // se aceptan PDF y Word
+        type: TIPOS_DOCUMENTO,
         copyToCacheDirectory: true,
       });
 
@@ -198,12 +223,14 @@ export default function DocumentsScreen({ onGo }: Props) {
       setProcesandoId(documento.id);
 
       const rutaAnterior = documento.rutaStorage;
-      const subida = await subirArchivoStorage(archivo.uri, archivo.name);
+      const tipoArchivo = tipoDeArchivo(archivo.name, archivo.mimeType);
+      const subida = await subirArchivoStorage(archivo.uri, archivo.name, tipoArchivo);
 
       await actualizarDocumentoFirebase(documento.id, {
         nombreArchivo: archivo.name,
         urlArchivo: subida.url,
         rutaStorage: subida.ruta,
+        tipoArchivo,
         estado: "Guardado",
       });
 
@@ -211,16 +238,21 @@ export default function DocumentsScreen({ onGo }: Props) {
         try {
           await eliminarArchivoStorage(rutaAnterior);
         } catch (errorLimpieza) {
-          console.log("No se pudo limpiar el PDF anterior:", errorLimpieza);
+          console.log("No se pudo limpiar el archivo anterior:", errorLimpieza);
         }
       }
 
       await cargarDocumentos();
 
-      Alert.alert("PDF actualizado", "El archivo fue actualizado en Firebase Storage.");
-    } catch (error) {
-      console.log("Error al actualizar PDF:", error);
-      Alert.alert("Error", "No se pudo actualizar el PDF.");
+      Alert.alert("Archivo actualizado", "El archivo fue actualizado en Firebase Storage.");
+    } catch (error: any) {
+      console.log("Error al actualizar el archivo:", error);
+      Alert.alert(
+        "Error",
+        error?.code === "storage/unauthorized"
+          ? "Firebase no aceptó el archivo. Debe ser PDF o Word y pesar menos de 15 MB."
+          : "No se pudo actualizar el archivo."
+      );
     } finally {
       setProcesandoId(null);
     }
@@ -358,7 +390,7 @@ export default function DocumentsScreen({ onGo }: Props) {
             style={globalStyles.input}
           />
 
-          <Text style={globalStyles.label}>Archivo PDF</Text>
+          <Text style={globalStyles.label}>Archivo (PDF o Word)</Text>
 
           <TouchableOpacity
             accessibilityRole="button"
@@ -367,8 +399,8 @@ export default function DocumentsScreen({ onGo }: Props) {
           >
             <Text style={globalStyles.viewButtonText}>
               {archivoSeleccionado
-                ? "📎 Cambiar PDF seleccionado"
-                : "📎 Seleccionar PDF del dispositivo"}
+                ? "📎 Cambiar archivo seleccionado"
+                : "📎 Seleccionar PDF o Word del dispositivo"}
             </Text>
           </TouchableOpacity>
 
@@ -399,7 +431,7 @@ export default function DocumentsScreen({ onGo }: Props) {
             <Text style={globalStyles.buttonText}>
               {guardando
                 ? archivoSeleccionado
-                  ? "Subiendo PDF..."
+                  ? "Subiendo archivo..."
                   : "Guardando..."
                 : "Guardar documento"}
             </Text>
@@ -506,11 +538,13 @@ export default function DocumentsScreen({ onGo }: Props) {
               <View style={globalStyles.documentActions}>
                 <TouchableOpacity
                   accessibilityRole="button"
+                  accessibilityLabel={`Ver el archivo de ${doc.nombre}`}
                   style={globalStyles.viewButton}
+                  disabled={abriendoId !== null}
                   onPress={() => verPdf(doc)}
                 >
                   <Text style={globalStyles.viewButtonText}>
-                    👁 Ver PDF
+                    {abriendoId === (doc.id || doc.nombre) ? "⏳ Abriendo..." : "👁 Ver archivo"}
                   </Text>
                 </TouchableOpacity>
 
@@ -547,8 +581,8 @@ export default function DocumentsScreen({ onGo }: Props) {
                     {enProceso
                       ? "Subiendo..."
                       : doc.urlArchivo
-                      ? "🔄 Actualizar PDF"
-                      : "📎 Subir PDF"}
+                      ? "🔄 Actualizar archivo"
+                      : "📎 Subir archivo"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -562,7 +596,7 @@ export default function DocumentsScreen({ onGo }: Props) {
           </Text>
 
           <Text style={globalStyles.helpText}>
-            Los archivos PDF se guardan de forma segura en Firebase Storage y
+            Los archivos PDF y Word se guardan de forma segura en Firebase Storage y
             la información del documento se guarda en Firestore para poder
             consultarla dentro de la app.
           </Text>

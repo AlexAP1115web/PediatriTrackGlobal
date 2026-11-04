@@ -7,8 +7,10 @@ import { useFonts } from "expo-font";
 import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { auth } from "../firebase/firebaseConfig";
+import { colors } from "../styles/globalStyles";
 import { Alert } from "../utils/alerta";
 import {
   cerrarSesionFirebase,
@@ -221,16 +223,18 @@ function PantallasApp() {
   return (
     // el key con versionTema hace que la pantalla se vuelva a dibujar
     // cuando cambian los colores o el tamaño de letra (sin perder en qué
-    // pantalla estaba el usuario)
-    <View
+    // pantalla estaba el usuario). Es SafeAreaView para que en Android
+    // nada quede debajo de la barra de estado ni de los botones de abajo
+    <SafeAreaView
       key={versionTema}
-      style={{ flex: 1 }}
+      edges={["top", "bottom"]}
+      style={{ flex: 1, backgroundColor: colors.background }}
       onTouchStart={registrarActividad}
     >
       {renderizarPantallaActual()}
       {!verificando && PANTALLAS_CON_PEDI.includes(pantalla) && (
         <PediFlotante onAbrir={() => navegar("chatbot")} />
       )}
-    </View>
+    </SafeAreaView>
   );
 }

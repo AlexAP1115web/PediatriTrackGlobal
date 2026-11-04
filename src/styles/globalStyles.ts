@@ -1879,6 +1879,40 @@ function crearEstilos(colors: Paleta, escala: number) {
       gap: 6,
       marginTop: 8,
     },
+    // en celular el cielo de Pedi es más bajito, para dejarle lugar a la
+    // plática
+    chatHeroMovil: {
+      gap: 10,
+      borderRadius: 24,
+      paddingTop: 12,
+      paddingBottom: 12,
+      paddingHorizontal: 10,
+    },
+    chatHeroTituloMovil: {
+      fontSize: t(28),
+      fontWeight: "900",
+      lineHeight: t(32),
+    },
+    // en celular los mensajes van dentro del mismo scroll que el encabezado
+    chatMensajesMovil: {
+      backgroundColor: colors.soft,
+      padding: 12,
+    },
+    // la caja de escribir fija abajo (en celular)
+    chatEntradaMovil: {
+      backgroundColor: colors.white,
+      borderRadius: 22,
+      borderWidth: 2,
+      borderColor: colors.primaryLight,
+      marginTop: 8,
+      ...sombraTenue,
+    },
+    chatPanelFila: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      marginTop: 8,
+    },
     chatInsigniaHero: {
       position: "absolute",
       top: 12,
@@ -1988,8 +2022,11 @@ function crearEstilos(colors: Paleta, escala: number) {
       paddingHorizontal: 10,
       borderWidth: 1,
       borderColor: colors.border,
+      // con letra grande el tip baja de línea en vez de salirse
+      maxWidth: "100%",
     },
     chatGlobitoTexto: {
+      flexShrink: 1,
       fontSize: t(12),
       fontWeight: "800",
       color: colors.primaryDark,
