@@ -23,25 +23,23 @@ import {
   obtenerVitaminasFirebase,
   VacunaAplicadaFirebase,
 } from "../firebase/firebaseService";
+import {
+  esquemaDe,
+  FUENTE_ESQUEMA,
+  INFO_VACUNAS,
+  nombreEtapa,
+  Pais,
+  TEXTO_ACCESO,
+  VacunaEsquema,
+} from "../data/esquemasVacunacion";
 import { globalStyles } from "../styles/globalStyles";
 import { Alert } from "../utils/alerta";
-import { textoEstado } from "../utils/estados";
 
 type Props = {
   onGo: (screen: string) => void;
 };
 
-type Pais = "México" | "Estados Unidos";
-
-type Vacuna = {
-  id: number;
-  nombre: string;
-  dosis: string;
-  edad: string;
-  pais: Pais;
-  descripcion: string;
-  efectos: string;
-};
+type Vacuna = VacunaEsquema;
 
 type Modulo = {
   id: number;
@@ -51,7 +49,27 @@ type Modulo = {
   ruta: string;
 };
 
-type EstadoVacuna = "Aplicada" | "Próxima" | "Pendiente";
+// estado de cada vacuna según lo registrado y la edad del bebé
+type EstadoVacuna =
+  | "Aplicada"
+  | "Atrasada"
+  | "Le toca"
+  | "Más adelante"
+  | "Ya no aplica"
+  | "Pendiente";
+
+// filtro de la línea de tiempo: todas, solo las del esquema oficial o solo
+// las privadas / con el pediatra
+type FiltroVacunas = "todas" | "oficiales" | "extra";
+
+const ICONO_ESTADO: Record<EstadoVacuna, string> = {
+  Aplicada: "✓",
+  Atrasada: "⚠",
+  "Le toca": "⏳",
+  "Más adelante": "○",
+  "Ya no aplica": "–",
+  Pendiente: "○",
+};
 
 // ==========================
 // funciones de apoyo para fechas y edad del bebé
@@ -88,23 +106,17 @@ function formatearEdadBebe(meses: number | null): string {
   if (meses === null) return "Edad no disponible";
   if (meses < 1) return "Recién nacido";
   if (meses === 1) return "1 mes";
-  return `${meses} meses`;
+  if (meses < 24) return `${meses} meses`;
+  const anios = Math.floor(meses / 12);
+  const resto = meses % 12;
+  return resto > 0 ? `${anios} años y ${resto} ${resto === 1 ? "mes" : "meses"}` : `${anios} años`;
 }
 
-function parsearEdadRequeridaAMeses(edad: string): number {
-  const texto = edad.toLowerCase();
-
-  if (
-    texto.includes("recién nacido") ||
-    texto.includes("recien nacido") ||
-    texto.includes("birth") ||
-    texto.includes("newborn")
-  ) {
-    return 0;
-  }
-
-  const coincidencia = edad.match(/\d+/);
-  return coincidencia ? parseInt(coincidencia[0], 10) : 0;
+// cuánto tiempo de margen doy antes de marcar una vacuna como atrasada
+function margenDeAtraso(edadMeses: number) {
+  if (edadMeses < 12) return 1;
+  if (edadMeses < 24) return 3;
+  return 6;
 }
 
 function formatearFechaHoy(): string {
@@ -145,6 +157,9 @@ export default function VaccinationScreen({ onGo }: Props) {
     VacunaAplicadaFirebase[]
   >([]);
   const [procesando, setProcesando] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState<FiltroVacunas>("todas");
+  // vacuna con el detalle abierto en la línea de tiempo
+  const [abierta, setAbierta] = useState<string | null>(null);
 
   const [vitaminasActivas, setVitaminasActivas] = useState(0);
   const [totalDocumentos, setTotalDocumentos] = useState(0);
@@ -290,161 +305,99 @@ export default function VaccinationScreen({ onGo }: Props) {
   const saludoPorHora = obtenerSaludoPorHora();
   const parentescoBebe = bebe?.parentesco || "";
 
-  const vacunasMexico: Vacuna[] = [
-    {
-      id: 1,
-      nombre: "BCG",
-      dosis: "Única",
-      edad: "Recién nacido",
-      pais: "México",
-      descripcion: "Protege contra formas graves de tuberculosis.",
-      efectos: "Dolor local, enrojecimiento o pequeña marca en el brazo.",
-    },
-    {
-      id: 2,
-      nombre: "Hepatitis B",
-      dosis: "1ra dosis",
-      edad: "Recién nacido",
-      pais: "México",
-      descripcion: "Ayuda a prevenir infección por hepatitis B.",
-      efectos: "Dolor en la zona de aplicación o fiebre leve.",
-    },
-    {
-      id: 3,
-      nombre: "Hexavalente",
-      dosis: "1ra dosis",
-      edad: "2 meses",
-      pais: "México",
-      descripcion:
-        "Protege contra difteria, tos ferina, tétanos, hepatitis B, poliomielitis e influenza tipo B.",
-      efectos: "Fiebre leve, irritabilidad, dolor o inflamación local.",
-    },
-    {
-      id: 4,
-      nombre: "Rotavirus",
-      dosis: "1ra dosis",
-      edad: "2 meses",
-      pais: "México",
-      descripcion: "Previene diarrea grave causada por rotavirus.",
-      efectos: "Irritabilidad, diarrea leve o vómito ocasional.",
-    },
-    {
-      id: 5,
-      nombre: "Neumococo",
-      dosis: "1ra dosis",
-      edad: "2 meses",
-      pais: "México",
-      descripcion:
-        "Ayuda a prevenir neumonía, meningitis y otras infecciones por neumococo.",
-      efectos: "Dolor local, fiebre leve o cansancio.",
-    },
-    {
-      id: 6,
-      nombre: "Influenza",
-      dosis: "Anual",
-      edad: "6 meses en adelante",
-      pais: "México",
-      descripcion: "Protege contra influenza estacional.",
-      efectos: "Dolor local, fiebre leve o malestar temporal.",
-    },
-  ];
+  // el esquema completo de 0 a 6 años del país elegido (ver
+  // src/data/esquemasVacunacion.ts)
+  const vacunas = esquemaDe(paisSeleccionado);
+  const esMexico = paisSeleccionado === "México";
 
-  const vacunasUSA: Vacuna[] = [
-    {
-      id: 1,
-      nombre: "Hepatitis B",
-      dosis: "1ra dosis",
-      edad: "Recién nacido",
-      pais: "Estados Unidos",
-      descripcion: "Protege contra la infección por hepatitis B.",
-      efectos: "Fiebre leve o dolor en la zona de aplicación.",
-    },
-    {
-      id: 2,
-      nombre: "DTaP",
-      dosis: "1ra dosis",
-      edad: "2 meses",
-      pais: "Estados Unidos",
-      descripcion: "Protege contra difteria, tétanos y tos ferina.",
-      efectos: "Fiebre, irritabilidad, inflamación o dolor local.",
-    },
-    {
-      id: 3,
-      nombre: "IPV",
-      dosis: "1ra dosis",
-      edad: "2 meses",
-      pais: "Estados Unidos",
-      descripcion: "Protege contra el poliovirus.",
-      efectos: "Dolor o enrojecimiento en la zona de aplicación.",
-    },
-    {
-      id: 4,
-      nombre: "Hib",
-      dosis: "1ra dosis",
-      edad: "2 meses",
-      pais: "Estados Unidos",
-      descripcion:
-        "Protege contra la enfermedad por Haemophilus influenzae tipo B.",
-      efectos: "Fiebre, enrojecimiento o inflamación.",
-    },
-    {
-      id: 5,
-      nombre: "Neumococo (PCV)",
-      dosis: "1ra dosis",
-      edad: "2 meses",
-      pais: "Estados Unidos",
-      descripcion: "Protege contra enfermedades neumocócicas.",
-      efectos: "Somnolencia, fiebre, pérdida de apetito o dolor local.",
-    },
-    {
-      id: 6,
-      nombre: "Rotavirus",
-      dosis: "1ra dosis",
-      edad: "2 meses",
-      pais: "Estados Unidos",
-      descripcion: "Protege contra diarrea grave por rotavirus.",
-      efectos: "Diarrea leve o vómito ocasional.",
-    },
-  ];
+  // en México las "oficiales" son las públicas; en EE. UU. todas las que
+  // recomienda la AAP cuentan para el avance
+  const esOficial = (vacuna: Vacuna) => vacuna.acceso !== "privada";
 
-  const vacunas = paisSeleccionado === "México" ? vacunasMexico : vacunasUSA;
-
-  const aplicadasClaves = useMemo(() => {
-    return new Set(
-      vacunasAplicadas
-        .filter((registro) => registro.pais === paisSeleccionado)
-        .map(claveVacuna)
+  // solo los registros de este bebé y este país (los registros viejos que
+  // no tienen bebeId se toman como del bebé activo)
+  const registrosDelBebe = useMemo(() => {
+    return vacunasAplicadas.filter(
+      (registro) =>
+        registro.pais === paisSeleccionado &&
+        (!registro.bebeId || registro.bebeId === bebe?.id)
     );
-  }, [vacunasAplicadas, paisSeleccionado]);
+  }, [vacunasAplicadas, paisSeleccionado, bebe?.id]);
 
-  const totalVacunas = vacunas.length;
-
-  const aplicadas = vacunas.filter((vacuna) =>
-    aplicadasClaves.has(claveVacuna(vacuna))
-  ).length;
-
-  const pendientes = totalVacunas - aplicadas;
-
-  const porcentajeCompletado =
-    totalVacunas > 0 ? Math.round((aplicadas / totalVacunas) * 100) : 0;
-
-  const proximaVacuna =
-    vacunas.find((vacuna) => !aplicadasClaves.has(claveVacuna(vacuna))) ||
-    null;
+  const aplicadasClaves = useMemo(
+    () => new Set(registrosDelBebe.map(claveVacuna)),
+    [registrosDelBebe]
+  );
 
   const obtenerEstadoVisual = (vacuna: Vacuna): EstadoVacuna => {
     if (aplicadasClaves.has(claveVacuna(vacuna))) return "Aplicada";
-    if (proximaVacuna && proximaVacuna.id === vacuna.id) return "Próxima";
-    return "Pendiente";
+    if (edadBebeMeses === null) return "Pendiente";
+    if (edadBebeMeses < vacuna.edadMeses) return "Más adelante";
+    if (vacuna.edadMaxMeses !== undefined && edadBebeMeses > vacuna.edadMaxMeses) {
+      return "Ya no aplica";
+    }
+    // las privadas son opcionales: nunca las marco como atrasadas
+    if (esOficial(vacuna) && edadBebeMeses > vacuna.edadMeses + margenDeAtraso(vacuna.edadMeses)) {
+      return "Atrasada";
+    }
+    return "Le toca";
   };
 
+  // para el avance cuento las oficiales que todavía aplican a su edad
+  const oficiales = vacunas.filter(
+    (vacuna) => esOficial(vacuna) && obtenerEstadoVisual(vacuna) !== "Ya no aplica"
+  );
+  const totalVacunas = oficiales.length;
+  const aplicadas = oficiales.filter((vacuna) =>
+    aplicadasClaves.has(claveVacuna(vacuna))
+  ).length;
+  const leTocanYa = oficiales.filter((vacuna) => {
+    const estado = obtenerEstadoVisual(vacuna);
+    return estado === "Le toca" || estado === "Atrasada";
+  }).length;
+  const atrasadas = oficiales.filter(
+    (vacuna) => obtenerEstadoVisual(vacuna) === "Atrasada"
+  ).length;
+  const porcentajeCompletado =
+    totalVacunas > 0 ? Math.round((aplicadas / totalVacunas) * 100) : 0;
+
+  // la próxima es la primera del esquema oficial que falta, en orden de edad
+  const proximaVacuna =
+    oficiales.find((vacuna) => !aplicadasClaves.has(claveVacuna(vacuna))) ||
+    null;
   const proximaAtrasada =
-    proximaVacuna !== null &&
-    edadBebeMeses !== null &&
-    edadBebeMeses > parsearEdadRequeridaAMeses(proximaVacuna.edad);
+    proximaVacuna !== null && obtenerEstadoVisual(proximaVacuna) === "Atrasada";
+
+  // la línea de tiempo: agrupo por edad lo que deja ver el filtro
+  const vacunasFiltradas = vacunas.filter((vacuna) => {
+    if (filtro === "oficiales") return esMexico ? vacuna.acceso !== "privada" : vacuna.acceso === "rutina";
+    if (filtro === "extra") return esMexico ? vacuna.acceso === "privada" || vacuna.acceso === "parcial" : vacuna.acceso === "pediatra";
+    return true;
+  });
+  const etapas = useMemo(() => {
+    const grupos: { edadMeses: number; vacunas: Vacuna[] }[] = [];
+    for (const vacuna of vacunasFiltradas) {
+      let grupo = grupos.find((g) => g.edadMeses === vacuna.edadMeses);
+      if (!grupo) {
+        grupo = { edadMeses: vacuna.edadMeses, vacunas: [] };
+        grupos.push(grupo);
+      }
+      grupo.vacunas.push(vacuna);
+    }
+    return grupos.sort((a, b) => a.edadMeses - b.edadMeses);
+  }, [vacunasFiltradas]);
+
+  // la etapa en la que va el bebé: la última cuya edad ya cumplió
+  const etapaActual =
+    edadBebeMeses === null
+      ? null
+      : etapas.reduce<number | null>(
+          (actual, etapa) => (etapa.edadMeses <= edadBebeMeses ? etapa.edadMeses : actual),
+          null
+        );
 
   const obtenerRegistroAplicado = (vacuna: Vacuna) => {
-    return vacunasAplicadas.find(
+    return registrosDelBebe.find(
       (registro) => claveVacuna(registro) === claveVacuna(vacuna)
     );
   };
@@ -460,6 +413,7 @@ export default function VaccinationScreen({ onGo }: Props) {
         dosis: vacuna.dosis,
         edad: vacuna.edad,
         fechaAplicacion: formatearFechaHoy(),
+        bebeId: bebe?.id,
       });
 
       await cargarVacunasAplicadas();
@@ -494,11 +448,7 @@ export default function VaccinationScreen({ onGo }: Props) {
     }
   };
 
-  const historialAplicadas = useMemo(() => {
-    return vacunasAplicadas.filter(
-      (registro) => registro.pais === paisSeleccionado
-    );
-  }, [vacunasAplicadas, paisSeleccionado]);
+  const historialAplicadas = registrosDelBebe;
 
   const modulos: Modulo[] = [
     {
@@ -565,11 +515,32 @@ export default function VaccinationScreen({ onGo }: Props) {
     return globalStyles.moduleIconBox;
   };
 
-  const getStatusStyle = (estado: EstadoVacuna) => {
-    if (estado === "Aplicada") return globalStyles.statusApplied;
-    if (estado === "Próxima") return globalStyles.statusNext;
-    return globalStyles.statusPending;
+  const estiloEstado = (estado: EstadoVacuna) => {
+    if (estado === "Aplicada") return globalStyles.vacEstadoAplicada;
+    if (estado === "Atrasada") return globalStyles.vacEstadoAtrasada;
+    if (estado === "Le toca") return globalStyles.vacEstadoLeToca;
+    return globalStyles.vacEstadoDespues;
   };
+
+  const estiloAcceso = (acceso: Vacuna["acceso"]) => {
+    if (acceso === "publica") return globalStyles.vacAccesoPublica;
+    if (acceso === "privada") return globalStyles.vacAccesoPrivada;
+    if (acceso === "parcial") return globalStyles.vacAccesoParcial;
+    if (acceso === "rutina") return globalStyles.vacAccesoRutina;
+    return globalStyles.vacAccesoPediatra;
+  };
+
+  const filtrosDisponibles: { valor: FiltroVacunas; texto: string }[] = esMexico
+    ? [
+        { valor: "todas", texto: "Todas" },
+        { valor: "oficiales", texto: "🏥 Públicas" },
+        { valor: "extra", texto: "💳 Privadas" },
+      ]
+    : [
+        { valor: "todas", texto: "Todas" },
+        { valor: "oficiales", texto: "✅ Para todos" },
+        { valor: "extra", texto: "🩺 Con tu pediatra" },
+      ];
 
   return (
     <View style={globalStyles.screen}>
@@ -638,8 +609,9 @@ export default function VaccinationScreen({ onGo }: Props) {
           <Text style={globalStyles.title} accessibilityRole="header">💉 Sistema de Vacunación</Text>
 
           <Text style={globalStyles.subtitle}>
-            Seguimiento pediátrico del esquema de vacunación de México o
-            Estados Unidos, organizado por edad, meses y dosis recomendadas.
+            Todas las vacunas de los 0 a los 6 años del esquema de México o
+            Estados Unidos, ordenadas por edad. Toca una vacuna para ver qué
+            protege y registrarla.
           </Text>
         </View>
 
@@ -657,7 +629,11 @@ export default function VaccinationScreen({ onGo }: Props) {
               globalStyles.countryButton,
               paisSeleccionado === "México" && globalStyles.countryActive,
             ]}
-            onPress={() => setPaisSeleccionado("México")}
+            onPress={() => {
+              setPaisSeleccionado("México");
+              setFiltro("todas");
+              setAbierta(null);
+            }}
           >
             <Text style={globalStyles.countryText}>🇲🇽 México</Text>
           </TouchableOpacity>
@@ -669,7 +645,11 @@ export default function VaccinationScreen({ onGo }: Props) {
               paisSeleccionado === "Estados Unidos" &&
                 globalStyles.countryActive,
             ]}
-            onPress={() => setPaisSeleccionado("Estados Unidos")}
+            onPress={() => {
+              setPaisSeleccionado("Estados Unidos");
+              setFiltro("todas");
+              setAbierta(null);
+            }}
           >
             <Text style={globalStyles.countryText}>🇺🇸 Estados Unidos</Text>
           </TouchableOpacity>
@@ -723,18 +703,20 @@ export default function VaccinationScreen({ onGo }: Props) {
 
         <View style={globalStyles.summaryRow}>
           <View style={globalStyles.summaryCard}>
-            <Text style={globalStyles.summaryNumber}>{totalVacunas}</Text>
-            <Text style={globalStyles.summaryText}>Vacunas</Text>
-          </View>
-
-          <View style={globalStyles.summaryCard}>
-            <Text style={globalStyles.summaryNumber}>{aplicadas}</Text>
+            <Text style={globalStyles.summaryNumber}>
+              {aplicadas}/{totalVacunas}
+            </Text>
             <Text style={globalStyles.summaryText}>Aplicadas</Text>
           </View>
 
           <View style={globalStyles.summaryCard}>
-            <Text style={globalStyles.summaryNumber}>{pendientes}</Text>
-            <Text style={globalStyles.summaryText}>Pendientes</Text>
+            <Text style={globalStyles.summaryNumber}>{leTocanYa}</Text>
+            <Text style={globalStyles.summaryText}>Le tocan ya</Text>
+          </View>
+
+          <View style={globalStyles.summaryCard}>
+            <Text style={globalStyles.summaryNumber}>{atrasadas}</Text>
+            <Text style={globalStyles.summaryText}>Atrasadas</Text>
           </View>
 
           <View style={globalStyles.summaryCard}>
@@ -756,11 +738,11 @@ export default function VaccinationScreen({ onGo }: Props) {
 
               <Text style={globalStyles.nextSubtitle}>
                 {proximaVacuna.dosis} • {proximaVacuna.edad}
-                {proximaAtrasada ? " • Atrasada" : ""}
+                {proximaAtrasada ? " • ⚠ Atrasada" : ""}
               </Text>
 
               <Text style={globalStyles.nextDate}>
-                {proximaVacuna.descripcion}
+                {INFO_VACUNAS[proximaVacuna.nombre]?.protege}
               </Text>
 
               <View style={globalStyles.progressBarTrack}>
@@ -773,7 +755,7 @@ export default function VaccinationScreen({ onGo }: Props) {
               </View>
 
               <Text style={globalStyles.progressLabel}>
-                {porcentajeCompletado}% del esquema completado
+                {porcentajeCompletado}% del esquema {esMexico ? "público" : "recomendado"} completado
               </Text>
 
               <TouchableOpacity
@@ -815,120 +797,172 @@ export default function VaccinationScreen({ onGo }: Props) {
           )}
         </View>
 
-        <Text style={globalStyles.sectionTitle} accessibilityRole="header">Esquema de vacunación</Text>
+        <Text style={globalStyles.sectionTitle} accessibilityRole="header">
+          Esquema completo de 0 a 6 años
+        </Text>
 
-        <View style={globalStyles.tableCard}>
-          <View style={globalStyles.tableHeader}>
-            <Text
-              style={[globalStyles.tableHeaderText, globalStyles.colLarge]}
-            >
-              Vacuna
-            </Text>
-
-            <Text
-              style={[globalStyles.tableHeaderText, globalStyles.colMedium]}
-            >
-              Edad
-            </Text>
-
-            <Text
-              style={[globalStyles.tableHeaderText, globalStyles.colSmall]}
-            >
-              Estado
-            </Text>
+        {/* qué significa cada insignia */}
+        <View style={globalStyles.vacLeyenda}>
+          <View style={globalStyles.vacInsignias}>
+            {(esMexico
+              ? (["publica", "parcial", "privada"] as const)
+              : (["rutina", "pediatra"] as const)
+            ).map((acceso) => (
+              <View key={acceso} style={[globalStyles.vacInsignia, estiloAcceso(acceso)]}>
+                <Text style={globalStyles.vacInsigniaTexto}>{TEXTO_ACCESO[acceso]}</Text>
+              </View>
+            ))}
           </View>
-
-          {vacunas.map((vacuna) => (
-            <View key={vacuna.id} style={globalStyles.tableRow}>
-              <View style={globalStyles.colLarge}>
-                <Text style={globalStyles.vaccineName}>{vacuna.nombre}</Text>
-
-                <Text style={globalStyles.vaccineDose}>{vacuna.dosis}</Text>
-              </View>
-
-              <Text
-                style={[globalStyles.vaccineStage, globalStyles.colMedium]}
-              >
-                {vacuna.edad}
-              </Text>
-
-              <View style={globalStyles.colSmall}>
-                <View
-                  style={[
-                    globalStyles.statusBadge,
-                    getStatusStyle(obtenerEstadoVisual(vacuna)),
-                  ]}
-                  accessible
-                  accessibilityLabel={`Estado: ${obtenerEstadoVisual(vacuna)}`}
-                >
-                  <Text style={globalStyles.statusText}>
-                    {textoEstado(obtenerEstadoVisual(vacuna))}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          ))}
+          <Text style={globalStyles.vacLeyendaTexto}>{FUENTE_ESQUEMA[paisSeleccionado]}</Text>
         </View>
 
-        <Text style={globalStyles.sectionTitle} accessibilityRole="header">Detalle de vacunas</Text>
+        <View style={globalStyles.vacFiltros} accessibilityRole="tablist">
+          {filtrosDisponibles.map((opcion) => {
+            const activo = filtro === opcion.valor;
+            return (
+              <TouchableOpacity
+                key={opcion.valor}
+                style={[globalStyles.vacFiltro, activo && globalStyles.vacFiltroActivo]}
+                onPress={() => setFiltro(opcion.valor)}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: activo }}
+              >
+                <Text style={[globalStyles.vacFiltroTexto, activo && globalStyles.vacFiltroTextoActivo]}>
+                  {opcion.texto}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
-        {vacunas.map((vacuna) => {
-          const estadoVisual = obtenerEstadoVisual(vacuna);
-          const registro = obtenerRegistroAplicado(vacuna);
-          const clave = claveVacuna(vacuna);
-          const enProceso = procesando === clave;
+        {/* línea de tiempo: una tarjeta por edad, con todas sus vacunas */}
+        {etapas.map((etapa) => {
+          const esActual = etapa.edadMeses === etapaActual;
+          const aplicadasEtapa = etapa.vacunas.filter((v) => aplicadasClaves.has(claveVacuna(v))).length;
 
           return (
-            <View key={`detalle-${vacuna.id}`} style={globalStyles.moduleCard}>
-              <View style={globalStyles.moduleIconBox}>
-                <Text style={globalStyles.moduleIcon}>💉</Text>
-              </View>
-
-              <View style={globalStyles.moduleInfo}>
-                <Text style={globalStyles.moduleTitle}>
-                  {vacuna.nombre} • {vacuna.edad}
-                </Text>
-
-                <Text style={globalStyles.moduleDescription}>
-                  {vacuna.descripcion}
-                </Text>
-
-                <Text style={globalStyles.moduleDescription}>
-                  Posibles efectos: {vacuna.efectos}
-                </Text>
-
-                {estadoVisual === "Aplicada" && registro ? (
-                  <>
-                    <Text style={globalStyles.moduleDescription}>
-                      Aplicada el {registro.fechaAplicacion}
-                    </Text>
-
-                    <TouchableOpacity
-                      accessibilityRole="button"
-                      accessibilityLabel={`Desmarcar ${vacuna.nombre}, ${vacuna.dosis}`}
-                      style={globalStyles.unmarkButton}
-                      disabled={enProceso}
-                      onPress={() => desmarcarAplicada(vacuna)}
-                    >
-                      <Text style={globalStyles.unmarkButtonText}>
-                        {enProceso ? "Actualizando..." : "Desmarcar"}
-                      </Text>
-                    </TouchableOpacity>
-                  </>
-                ) : (
-                  <TouchableOpacity
-                    accessibilityRole="button"
-                    accessibilityLabel={`Marcar ${vacuna.nombre}, ${vacuna.dosis}, como aplicada`}
-                    style={globalStyles.applyButton}
-                    disabled={enProceso}
-                    onPress={() => marcarComoAplicada(vacuna)}
-                  >
-                    <Text style={globalStyles.applyButtonText}>
-                      {enProceso ? "Guardando..." : "Marcar como aplicada"}
-                    </Text>
-                  </TouchableOpacity>
+            <View
+              key={`etapa-${etapa.edadMeses}`}
+              style={[globalStyles.vacEtapa, esActual && globalStyles.vacEtapaActual]}
+            >
+              <View style={globalStyles.vacEtapaEncabezado}>
+                <View style={{ flex: 1 }}>
+                  <Text style={globalStyles.vacEtapaTitulo} accessibilityRole="header">
+                    {nombreEtapa(etapa.edadMeses)}
+                  </Text>
+                  <Text style={globalStyles.vacEtapaSub}>
+                    {aplicadasEtapa} de {etapa.vacunas.length} aplicadas
+                  </Text>
+                </View>
+                {esActual && (
+                  <View style={globalStyles.vacEtapaEtiqueta}>
+                    <Text style={globalStyles.vacEtapaEtiquetaTexto}>👶 Su edad</Text>
+                  </View>
                 )}
               </View>
+
+              {etapa.vacunas.map((vacuna) => {
+                const estado = obtenerEstadoVisual(vacuna);
+                const registro = obtenerRegistroAplicado(vacuna);
+                const clave = claveVacuna(vacuna);
+                const enProceso = procesando === clave;
+                const detalleAbierto = abierta === vacuna.id;
+                const info = INFO_VACUNAS[vacuna.nombre];
+
+                return (
+                  <View key={vacuna.id}>
+                    <TouchableOpacity
+                      style={globalStyles.vacFila}
+                      onPress={() => setAbierta(detalleAbierto ? null : vacuna.id)}
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: detalleAbierto }}
+                      accessibilityLabel={`${vacuna.nombre}, ${vacuna.dosis}, ${vacuna.edad}. ${TEXTO_ACCESO[vacuna.acceso]}. Estado: ${estado}`}
+                      accessibilityHint="Toca para ver qué protege y registrarla"
+                    >
+                      <View style={[globalStyles.vacPunto, estiloEstado(estado)]}>
+                        <Text style={globalStyles.vacPuntoTexto}>{ICONO_ESTADO[estado]}</Text>
+                      </View>
+
+                      <View style={globalStyles.vacFilaInfo}>
+                        <Text style={globalStyles.vacNombre}>{vacuna.nombre}</Text>
+                        <Text style={globalStyles.vacDosis}>
+                          {vacuna.dosis}
+                          {vacuna.edad !== nombreEtapa(etapa.edadMeses) ? ` • ${vacuna.edad}` : ""}
+                          {` • ${estado}`}
+                        </Text>
+                        <View style={globalStyles.vacInsignias}>
+                          <View style={[globalStyles.vacInsignia, estiloAcceso(vacuna.acceso)]}>
+                            <Text style={globalStyles.vacInsigniaTexto}>{TEXTO_ACCESO[vacuna.acceso]}</Text>
+                          </View>
+                        </View>
+                      </View>
+
+                      <Text style={globalStyles.vacFlecha}>{detalleAbierto ? "⌃" : "⌄"}</Text>
+                    </TouchableOpacity>
+
+                    {detalleAbierto && (
+                      <View style={globalStyles.vacDetalle}>
+                        {info && (
+                          <>
+                            <Text style={globalStyles.vacDetalleTexto}>
+                              <Text style={globalStyles.vacNegrita}>Protege contra: </Text>
+                              {info.protege}
+                            </Text>
+                            <Text style={globalStyles.vacDetalleTexto}>
+                              <Text style={globalStyles.vacNegrita}>Posibles efectos: </Text>
+                              {info.efectos}
+                            </Text>
+                          </>
+                        )}
+                        {vacuna.nota && (
+                          <Text style={globalStyles.vacDetalleTexto}>
+                            <Text style={globalStyles.vacNegrita}>Importante: </Text>
+                            {vacuna.nota}
+                          </Text>
+                        )}
+                        {registro && (
+                          <Text style={globalStyles.vacDetalleTexto}>
+                            <Text style={globalStyles.vacNegrita}>Aplicada el: </Text>
+                            {registro.fechaAplicacion}
+                          </Text>
+                        )}
+
+                        <View style={globalStyles.vacBotones}>
+                          {estado === "Ya no aplica" ? (
+                            <Text style={globalStyles.vacDetalleTexto}>
+                              Por su edad ya no se aplica. Si tienes dudas, consúltalo con tu pediatra.
+                            </Text>
+                          ) : estado === "Aplicada" ? (
+                            <TouchableOpacity
+                              accessibilityRole="button"
+                              accessibilityLabel={`Desmarcar ${vacuna.nombre}, ${vacuna.dosis}`}
+                              style={globalStyles.vacBotonSecundario}
+                              disabled={enProceso}
+                              onPress={() => desmarcarAplicada(vacuna)}
+                            >
+                              <Text style={globalStyles.vacBotonSecundarioTexto}>
+                                {enProceso ? "Actualizando..." : "Desmarcar"}
+                              </Text>
+                            </TouchableOpacity>
+                          ) : (
+                            <TouchableOpacity
+                              accessibilityRole="button"
+                              accessibilityLabel={`Marcar ${vacuna.nombre}, ${vacuna.dosis}, como aplicada`}
+                              style={globalStyles.vacBoton}
+                              disabled={enProceso}
+                              onPress={() => marcarComoAplicada(vacuna)}
+                            >
+                              <Text style={globalStyles.vacBotonTexto}>
+                                {enProceso ? "Guardando..." : "✓ Marcar como aplicada"}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
             </View>
           );
         })}

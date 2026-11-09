@@ -21,11 +21,13 @@ export const GUIAS_MODULOS: Record<ModuloAyuda, { titulo: string; guia: string }
     titulo: "Vacunación",
     guia: `Es la pantalla principal. Arriba está el perfil del bebé activo con su edad, fecha de nacimiento y sexo.
 1. Elige el esquema de vacunación: México o Estados Unidos.
-2. La tabla muestra cada vacuna con su edad recomendada y su estado: "✓ Aplicada", "⏳ Próxima" (la siguiente que le toca) o "○ Pendiente".
-3. En "Detalle de vacunas" cada vacuna explica para qué sirve y sus posibles efectos. Toca "Marcar como aplicada" cuando se la pongan; se guarda con la fecha de hoy. Si te equivocaste, toca "Desmarcar".
-4. En "Historial de vacunas aplicadas" ves todas las que ya tiene.
-5. El botón de engrane (⚙️) junto al perfil sirve para cambiar de bebé, registrar otro, ver la política de privacidad, abrir Accesibilidad o cerrar sesión.
-6. Más abajo están los accesos a los demás módulos: Vitaminación, Documentos, Alimentación complementaria, Información adicional, Política de privacidad, Asistente Virtual y Accesibilidad.
+2. "Esquema completo de 0 a 6 años" muestra todas las vacunas agrupadas por edad (al nacer, 2, 4, 6, 7, 12 y 18 meses, 2 y 4 años). La etapa que corresponde a la edad del bebé dice "👶 Su edad".
+3. Cada vacuna dice si es "🏥 Pública · gratis" o "💳 Privada · con costo" (en México), o "✅ Para todos" / "🩺 Con tu pediatra" (en Estados Unidos). Con los botones de arriba puedes ver todas, solo las públicas o solo las privadas.
+4. El estado de cada vacuna se calcula con la edad del bebé: "✓ Aplicada", "⏳ Le toca", "⚠ Atrasada", "○ Más adelante" o "– Ya no aplica" (por ejemplo rotavirus después de los 8 meses).
+5. Toca una vacuna para ver qué protege, sus posibles efectos y notas importantes, y para "Marcar como aplicada" (se guarda con la fecha de hoy y solo para ese bebé). Si te equivocaste, toca "Desmarcar".
+6. "Próxima vacuna" te dice la siguiente del esquema oficial que falta, y en "Historial de vacunas aplicadas" ves todas las que ya tiene.
+7. El botón de engrane (⚙️) junto al perfil sirve para cambiar de bebé, registrar otro, ver la política de privacidad, abrir Accesibilidad o cerrar sesión.
+8. Más abajo están los accesos a los demás módulos: Vitaminación, Documentos, Alimentación complementaria, Información adicional, Política de privacidad, Asistente Virtual y Accesibilidad.
 Es una guía de seguimiento; las decisiones sobre vacunas las toma su pediatra.`,
   },
   vitaminas: {

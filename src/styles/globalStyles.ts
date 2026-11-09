@@ -1922,6 +1922,219 @@ function crearEstilos(colors: Paleta, escala: number) {
       paddingHorizontal: 9,
       paddingVertical: 3,
     },
+    // ===== Vacunación: línea de tiempo por edades =====
+    vacLeyenda: {
+      backgroundColor: colors.white,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 14,
+      marginBottom: 12,
+    },
+    vacLeyendaTexto: {
+      fontSize: t(12),
+      lineHeight: t(18),
+      color: colors.muted,
+      marginTop: 8,
+    },
+    vacFiltros: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      marginBottom: 14,
+    },
+    vacFiltro: {
+      paddingVertical: 8,
+      paddingHorizontal: 14,
+      borderRadius: 18,
+      borderWidth: 2,
+      borderColor: colors.border,
+      backgroundColor: colors.white,
+    },
+    vacFiltroActivo: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryLight,
+    },
+    vacFiltroTexto: {
+      fontSize: t(13),
+      fontWeight: "800",
+      color: colors.muted,
+    },
+    vacFiltroTextoActivo: {
+      color: colors.primaryDark,
+    },
+    vacEtapa: {
+      backgroundColor: colors.white,
+      borderRadius: 20,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginBottom: 12,
+      overflow: "hidden",
+      ...sombraTenue,
+    },
+    vacEtapaActual: {
+      borderWidth: 2,
+      borderColor: colors.primary,
+    },
+    vacEtapaEncabezado: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      backgroundColor: colors.soft2,
+    },
+    vacEtapaTitulo: {
+      fontSize: t(16),
+      fontWeight: "900",
+      color: colors.primaryDark,
+    },
+    vacEtapaSub: {
+      fontSize: t(12),
+      fontWeight: "700",
+      color: colors.muted,
+      marginTop: 2,
+    },
+    vacEtapaEtiqueta: {
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+    },
+    vacEtapaEtiquetaTexto: {
+      color: colors.white,
+      fontSize: t(11),
+      fontWeight: "900",
+    },
+    vacFila: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    vacPunto: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    vacPuntoTexto: {
+      fontSize: t(14),
+      fontWeight: "900",
+      color: colors.text,
+    },
+    vacEstadoAplicada: {
+      backgroundColor: colors.greenLight,
+    },
+    vacEstadoLeToca: {
+      backgroundColor: colors.yellow,
+    },
+    vacEstadoAtrasada: {
+      backgroundColor: colors.redLight,
+    },
+    vacEstadoDespues: {
+      backgroundColor: colors.soft2,
+    },
+    vacFilaInfo: {
+      flex: 1,
+      minWidth: 0,
+    },
+    vacNombre: {
+      fontSize: t(15),
+      fontWeight: "800",
+      color: colors.text,
+    },
+    vacDosis: {
+      fontSize: t(12),
+      fontWeight: "600",
+      color: colors.muted,
+      marginTop: 1,
+    },
+    vacInsignias: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 6,
+      marginTop: 6,
+    },
+    vacInsignia: {
+      borderRadius: 10,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    vacInsigniaTexto: {
+      fontSize: t(11),
+      fontWeight: "800",
+      color: colors.text,
+    },
+    vacAccesoPublica: {
+      backgroundColor: colors.greenLight,
+    },
+    vacAccesoParcial: {
+      backgroundColor: colors.yellow,
+    },
+    vacAccesoPrivada: {
+      backgroundColor: colors.pinkLight,
+    },
+    vacAccesoRutina: {
+      backgroundColor: colors.primaryLight,
+    },
+    vacAccesoPediatra: {
+      backgroundColor: colors.yellow,
+    },
+    vacFlecha: {
+      fontSize: t(18),
+      fontWeight: "900",
+      color: colors.muted,
+    },
+    vacDetalle: {
+      paddingHorizontal: 14,
+      paddingBottom: 14,
+      paddingTop: 4,
+      backgroundColor: colors.soft,
+    },
+    vacDetalleTexto: {
+      fontSize: t(13),
+      lineHeight: t(19),
+      color: colors.text,
+      marginTop: 6,
+    },
+    vacNegrita: {
+      fontWeight: "900",
+    },
+    vacBotones: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+      marginTop: 12,
+    },
+    vacBoton: {
+      backgroundColor: colors.primary,
+      borderRadius: 14,
+      paddingVertical: 10,
+      paddingHorizontal: 16,
+    },
+    vacBotonTexto: {
+      color: colors.white,
+      fontSize: t(13),
+      fontWeight: "900",
+    },
+    vacBotonSecundario: {
+      backgroundColor: colors.white,
+      borderRadius: 14,
+      borderWidth: 2,
+      borderColor: colors.border,
+      paddingVertical: 9,
+      paddingHorizontal: 16,
+    },
+    vacBotonSecundarioTexto: {
+      color: colors.text,
+      fontSize: t(13),
+      fontWeight: "800",
+    },
     // botones de cada respuesta de Pedi (escuchar y reportar)
     chatAccionesFila: {
       flexDirection: "row",
