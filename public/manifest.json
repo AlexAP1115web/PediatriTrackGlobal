@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "PediatriTrack Global",
+  "short_name": "PediatriTrack",
+  "description": "Seguimiento pediátrico: vacunas, vitaminas, alimentación, documentos médicos y Pedi, un asistente con IA.",
+  "lang": "es-MX",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5FAFF",
+  "theme_color": "#00843D",
+  "categories": ["medical", "health", "lifestyle"],
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

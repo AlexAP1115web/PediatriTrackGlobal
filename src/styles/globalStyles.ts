@@ -1157,6 +1157,10 @@ function crearEstilos(colors: Paleta, escala: number) {
       backgroundColor: colors.white,
       borderRadius: 26,
       padding: 24,
+      // en computadora no se estira a todo lo ancho
+      width: "100%",
+      maxWidth: 480,
+      alignSelf: "center",
       ...sombraSuave,
     },
 
