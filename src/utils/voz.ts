@@ -15,10 +15,14 @@ import { Platform } from "react-native";
 // Se puede cambiar en .env.local:
 //   EXPO_PUBLIC_GEMINI_TTS_MODEL=gemini-3.1-flash-tts-preview
 //   EXPO_PUBLIC_GEMINI_TTS_VOICE=Leda   (otras: Aoede, Laomedeia, Achird, Sulafat)
+//   EXPO_PUBLIC_VOZ_VELOCIDAD=1.12      (1 = normal; más alto = más rápido)
 // ==========================================================================
 
 const GEMINI_API_KEY = process.env.EXPO_PUBLIC_GEMINI_API_KEY || "";
 const VOZ_GEMINI = process.env.EXPO_PUBLIC_GEMINI_TTS_VOICE || "Leda";
+// se sentía lenta, así que la reproduzco un poco más rápido. Con la
+// corrección de tono sigue siendo la misma voz, nada más más ágil
+const VELOCIDAD_VOZ = Math.min(1.5, Math.max(0.8, Number(process.env.EXPO_PUBLIC_VOZ_VELOCIDAD) || 1.12));
 
 // si un modelo no existe para la llave, pruebo el siguiente y me quedo con
 // el que sí funcionó
@@ -33,8 +37,9 @@ let modeloQueFunciona: string | null = null;
 const ESTILO_VOZ =
   "Lee en voz alta el siguiente texto en español de México. Habla como una " +
   "maestra de preescolar alegre y cariñosa que les explica algo a papás y " +
-  "niños: voz dulce y sonriente, con entusiasmo, ritmo tranquilo y pausas " +
-  "naturales. Lee el texto tal cual, sin agregar ni quitar palabras:\n\n";
+  "niños: voz dulce y sonriente, con entusiasmo y ritmo ágil, como cuando " +
+  "platicas con energía, sin pausas largas. Lee el texto tal cual, sin " +
+  "agregar ni quitar palabras:\n\n";
 
 export type EventosVoz = {
   alEmpezar?: () => void;
@@ -223,6 +228,11 @@ export async function hablar(textoOriginal: string, eventos: EventosVoz = {}) {
         await setAudioModeAsync({ playsInSilentMode: true });
       }
       reproductor = createAudioPlayer({ uri });
+      try {
+        reproductor.setPlaybackRate(VELOCIDAD_VOZ, "high");
+      } catch {
+        // si el celular no deja cambiar la velocidad, suena a velocidad normal
+      }
       let empezo = false;
       reproductor.addListener("playbackStatusUpdate", (estado) => {
         if (miTurno !== turno) return;
@@ -249,7 +259,7 @@ export async function hablar(textoOriginal: string, eventos: EventosVoz = {}) {
   Speech.speak(texto, {
     language: "es-MX",
     voice: vozDelCelular,
-    rate: 0.92,
+    rate: 1.05,
     pitch: 1.15,
     onStart: eventos.alEmpezar,
     onDone: eventos.alTerminar,
