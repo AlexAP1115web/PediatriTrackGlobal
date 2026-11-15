@@ -66,6 +66,9 @@ export default function PrivacyPolicyScreen({ onGo }: Props) {
             módulo: lo que escribes, la edad y las alergias del bebé (no su
             nombre) y las fotos de medicamentos se envían a Google Gemini
             para generar la respuesta.
+            {"\n"}• Al generar una pre-consulta con QR, lo que escribes y la
+            edad y alergias del bebé (no su nombre) se envían a Google Gemini
+            para armar un resumen para el pediatra.
             {"\n"}• Tu historial de consultas y tus opciones de accesibilidad
             se guardan solo en este dispositivo.
             {"\n"}No usamos tus datos con fines publicitarios ni los
@@ -87,6 +90,11 @@ export default function PrivacyPolicyScreen({ onGo }: Props) {
             • Los datos de texto (bebé, vacunas, vitaminas, alimentación)
             se guardan en Cloud Firestore.
             {"\n"}• Los archivos PDF se guardan en Firebase Storage.
+            {"\n"}• Las fichas de "QR de salud" (pre-consulta y viaje) también
+            se guardan en Cloud Firestore. Solo las puede ver quien tenga el
+            código QR o el enlace, y solo mientras estén vigentes (72 horas la
+            pre-consulta; 7, 30 o 90 días la de viaje). Puedes desactivarlas
+            en cualquier momento.
             {"\n"}• Ambos servicios son operados por Google bajo el plan
             Blaze de Firebase, con reglas de seguridad configuradas para
             este proyecto.

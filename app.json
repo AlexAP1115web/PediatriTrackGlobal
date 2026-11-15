@@ -45,6 +45,14 @@
         }
       ],
       [
+        "expo-camera",
+        {
+          "cameraPermission": "PediatriTrack Global usa la cámara para leer códigos QR de fichas de salud y la caja de medicamentos. No guarda fotos.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
         "expo-audio",
         {
           "microphonePermission": false,

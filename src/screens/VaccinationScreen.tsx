@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Linking,
+  Platform,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -34,6 +36,7 @@ import {
 } from "../data/esquemasVacunacion";
 import { globalStyles } from "../styles/globalStyles";
 import { Alert } from "../utils/alerta";
+import { enlaceGoogleCalendar, fechaDeVacuna } from "../utils/calendario";
 
 type Props = {
   onGo: (screen: string) => void;
@@ -450,6 +453,21 @@ export default function VaccinationScreen({ onGo }: Props) {
 
   const historialAplicadas = registrosDelBebe;
 
+  // recordatorio de la próxima vacuna en Google Calendar
+  const agregarAlCalendario = (vacuna: Vacuna) => {
+    const fecha = fechaDeVacuna(bebe?.fechaNacimiento || "", vacuna.edadMeses);
+    const url = enlaceGoogleCalendar(
+      `Vacuna de ${bebe?.nombre || "mi bebé"}: ${vacuna.nombre} (${vacuna.dosis})`,
+      fecha,
+      `Le toca a los ${vacuna.edad}. Lleva la Cartilla de vacunación.\nRecordatorio creado con PediatriTrack Global.`
+    );
+    if (Platform.OS === "web") {
+      window.open(url, "_blank", "noopener");
+      return;
+    }
+    Linking.openURL(url).catch((error) => console.log("No se pudo abrir el calendario:", error));
+  };
+
   const modulos: Modulo[] = [
     {
       id: 1,
@@ -465,6 +483,22 @@ export default function VaccinationScreen({ onGo }: Props) {
       descripcion:
         "Acta de nacimiento, cartilla, estudios, consultas y archivos médicos.",
       ruta: "documentos",
+    },
+    {
+      id: 8,
+      icono: "📲",
+      titulo: "QR de salud",
+      descripcion:
+        "Pre-consulta y ficha de viaje con código QR para el pediatra.",
+      ruta: "qrsalud",
+    },
+    {
+      id: 9,
+      icono: "📷",
+      titulo: "Escanear QR",
+      descripcion:
+        "Para el pediatra: escanea el QR de una familia y ve su ficha.",
+      ruta: "escaner",
     },
     {
       id: 3,
@@ -771,6 +805,16 @@ export default function VaccinationScreen({ onGo }: Props) {
                   {procesando === claveVacuna(proximaVacuna)
                     ? "Guardando..."
                     : "Marcar como aplicada"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                accessibilityRole="link"
+                style={globalStyles.calendarioBoton}
+                onPress={() => agregarAlCalendario(proximaVacuna)}
+              >
+                <Text style={globalStyles.calendarioBotonTexto}>
+                  📅 Recordármelo en Google Calendar
                 </Text>
               </TouchableOpacity>
             </>

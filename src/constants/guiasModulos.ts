@@ -27,7 +27,8 @@ export const GUIAS_MODULOS: Record<ModuloAyuda, { titulo: string; guia: string }
 5. Toca una vacuna para ver qué protege, sus posibles efectos y notas importantes, y para "Marcar como aplicada" (se guarda con la fecha de hoy y solo para ese bebé). Si te equivocaste, toca "Desmarcar".
 6. "Próxima vacuna" te dice la siguiente del esquema oficial que falta, y en "Historial de vacunas aplicadas" ves todas las que ya tiene.
 7. El botón de engrane (⚙️) junto al perfil sirve para cambiar de bebé, registrar otro, ver la política de privacidad, abrir Accesibilidad o cerrar sesión.
-8. Más abajo están los accesos a los demás módulos: Vitaminación, Documentos, Alimentación complementaria, Información adicional, Política de privacidad, Asistente Virtual y Accesibilidad.
+8. "📅 Recordármelo en Google Calendar" (en Próxima vacuna) abre Google Calendar con el recordatorio ya escrito para el día que le toca; solo hay que guardarlo.
+9. Más abajo están los accesos a los demás módulos: Vitaminación, Documentos, QR de salud (pre-consulta y ficha de viaje con código QR), Escanear QR (para el pediatra), Alimentación complementaria, Información adicional, Política de privacidad, Asistente Virtual y Accesibilidad.
 Es una guía de seguimiento; las decisiones sobre vacunas las toma su pediatra.`,
   },
   vitaminas: {

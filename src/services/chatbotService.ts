@@ -498,3 +498,36 @@ Reglas:
     return null;
   }
 }
+
+// --------------------------------------------------------------------------
+// Resumen de la pre-consulta para el pediatra (como el de MediCore). Se hace
+// en el celular del papá al generar el QR y se guarda en la ficha, así el
+// pediatra lo ve al escanear sin gastar otra consulta a la IA. Si falla o
+// no hay llave, la ficha se crea igual pero sin resumen.
+// --------------------------------------------------------------------------
+export async function resumirPreconsulta(datos: string): Promise<string> {
+  if (!GEMINI_API_KEY) return "";
+
+  const instrucciones = `
+Ayudas a un pediatra a leer rápido la pre-consulta que llenó la familia de
+un bebé. Con SOLO los datos que te paso, escribe de 3 a 5 viñetas cortas
+(empieza cada una con "- "):
+1. Primero alergias si las hay.
+2. Luego el motivo, desde cuándo y lo más importante que notó la familia
+   (temperatura, peso, medicamentos ya dados).
+3. Al final las preguntas de la familia.
+No inventes datos, no des diagnóstico ni tratamiento. Español de México,
+lenguaje clínico sencillo, sin saludos ni cierre.
+`.trim();
+
+  try {
+    const resultado = await preguntarGemini([], datos, {
+      instrucciones,
+      maxTokens: 300,
+    });
+    return (resultado.texto || "").trim().slice(0, 1200);
+  } catch (error) {
+    console.log("Error al resumir la pre-consulta:", error);
+    return "";
+  }
+}

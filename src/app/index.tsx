@@ -4,6 +4,7 @@ import { Nunito_700Bold } from "@expo-google-fonts/nunito/700Bold";
 import { Nunito_800ExtraBold } from "@expo-google-fonts/nunito/800ExtraBold";
 import { Nunito_900Black } from "@expo-google-fonts/nunito/900Black";
 import { useFonts } from "expo-font";
+import { router, useLocalSearchParams } from "expo-router";
 import { onAuthStateChanged } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
@@ -25,10 +26,13 @@ import AccesibilidadScreen from "../screens/AccesibilidadScreen";
 import BabyRegisterScreen from "../screens/BabyRegisterScreen";
 import ChatbotScreen from "../screens/ChatbotScreen";
 import DocumentsScreen from "../screens/DocumentsScreen";
+import EscanerQrScreen from "../screens/EscanerQrScreen";
+import FichaSaludScreen from "../screens/FichaSaludScreen";
 import FoodScreen from "../screens/FoodScreen";
 import InfoScreen from "../screens/InfoScreen";
 import LoginScreen from "../screens/LoginScreen";
 import PrivacyPolicyScreen from "../screens/PrivacyPolicyScreen";
+import QrSaludScreen from "../screens/QrSaludScreen";
 import VaccinationScreen from "../screens/VaccinationScreen";
 import VitaminsScreen from "../screens/VitaminsScreen";
 import { globalStyles } from "../styles/globalStyles";
@@ -43,7 +47,9 @@ type ScreenName =
   | "info"
   | "privacidad"
   | "chatbot"
-  | "accesibilidad";
+  | "accesibilidad"
+  | "qrsalud"
+  | "escaner";
 
 // pantallas donde aparece Pedi flotando para abrir el asistente
 const PANTALLAS_CON_PEDI: ScreenName[] = [
@@ -70,6 +76,9 @@ export default function Index() {
     Nunito_800ExtraBold,
     Nunito_900Black,
   });
+  // si la página se abrió con ?ficha=CODIGO (el QR que escanea el
+  // pediatra), muestro esa ficha sin pedir iniciar sesión
+  const { ficha } = useLocalSearchParams<{ ficha?: string }>();
 
   if (!fuentesListas && !errorFuentes) {
     return (
@@ -81,7 +90,17 @@ export default function Index() {
 
   return (
     <AccesibilidadProvider>
-      <PantallasApp />
+      {typeof ficha === "string" && ficha ? (
+        <SafeAreaView edges={["top", "bottom"]} style={{ flex: 1, backgroundColor: colors.background }}>
+          <FichaSaludScreen
+            token={ficha}
+            textoCerrar="Abrir PediatriTrack Global"
+            onCerrar={() => router.replace("/")}
+          />
+        </SafeAreaView>
+      ) : (
+        <PantallasApp />
+      )}
     </AccesibilidadProvider>
   );
 }
@@ -212,6 +231,14 @@ function PantallasApp() {
 
     if (pantalla === "accesibilidad") {
       return <AccesibilidadScreen onGo={navegar} />;
+    }
+
+    if (pantalla === "qrsalud") {
+      return <QrSaludScreen onGo={navegar} />;
+    }
+
+    if (pantalla === "escaner") {
+      return <EscanerQrScreen onGo={navegar} />;
     }
 
     return <LoginScreen onLogin={alIniciarSesion} />;
