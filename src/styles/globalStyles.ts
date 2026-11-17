@@ -1276,6 +1276,31 @@ function crearEstilos(colors: Paleta, escala: number) {
       fontSize: t(12),
     },
 
+    // botón para bajar el APK desde la versión web
+    apkBoton: {
+      marginTop: 14,
+      borderWidth: 2,
+      borderColor: colors.primary,
+      backgroundColor: colors.white,
+      borderRadius: 16,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      alignItems: "center",
+    },
+    apkBotonTexto: {
+      color: colors.primaryDark,
+      fontWeight: "900",
+      fontSize: t(15),
+      textAlign: "center",
+    },
+    apkBotonSub: {
+      color: colors.muted,
+      fontWeight: "600",
+      fontSize: t(11),
+      textAlign: "center",
+      marginTop: 3,
+    },
+
     versionCard: {
       backgroundColor: colors.primaryLight,
       padding: 12,

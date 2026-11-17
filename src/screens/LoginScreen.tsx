@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 
+import { URL_APK } from "../constants/enlaces";
 import {
   contrasenaFiltradaPublicamente,
   iniciarSesionFirebase,
@@ -350,6 +351,25 @@ export default function LoginScreen({ onLogin }: Props) {
               : "Crear Cuenta"}
           </Text>
         </TouchableOpacity>
+
+        {/* en la versión web (PWA) pongo el acceso al APK de Android, para
+            quien prefiera tener la app instalada con todas sus funciones */}
+        {Platform.OS === "web" && (
+          <TouchableOpacity
+            style={globalStyles.apkBoton}
+            onPress={() => window.open(URL_APK, "_blank", "noopener")}
+            accessibilityRole="link"
+            accessibilityLabel="Descargar la app para Android (APK)"
+            accessibilityHint="Abre la página para instalar la última versión en Android"
+          >
+            <Text style={globalStyles.apkBotonTexto}>
+              🤖 ¿Tienes Android? Descarga la app (APK)
+            </Text>
+            <Text style={globalStyles.apkBotonSub}>
+              Última versión · en computadora te muestra un QR para escanear
+            </Text>
+          </TouchableOpacity>
+        )}
 
         <View style={globalStyles.versionCard}>
           <Text style={globalStyles.versionText}>
