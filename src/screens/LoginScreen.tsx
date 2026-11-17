@@ -502,7 +502,7 @@ export default function LoginScreen({ onLogin }: Props) {
           accessibilityHint="Abre la página para instalar la última versión en Android"
         >
           <Text style={globalStyles.apkBotonTexto}>🤖 ¿Tienes Android? Descarga la app (APK)</Text>
-          <Text style={globalStyles.apkBotonSub}>Última versión · en computadora te muestra un QR para escanear</Text>
+          <Text style={globalStyles.apkBotonSub}>Última versión · se descarga el archivo .apk para instalarlo</Text>
         </TouchableOpacity>
       )}
 

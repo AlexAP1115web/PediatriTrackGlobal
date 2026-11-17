@@ -1,10 +1,12 @@
 // Enlaces públicos de la app.
 //
-// URL_APK: página de Expo para instalar la última versión de Android. Cada
-// vez que hago un build nuevo (eas build -p android --profile preview)
-// pego aquí, o en EXPO_PUBLIC_APK_URL de .env.local, el link que imprime la
-// terminal y vuelvo a publicar la web (npm run deploy:web). Así el botón
-// "Descargar para Android" de la versión web siempre lleva al último APK.
+// URL_APK: descarga directa del APK más reciente de Android. OJO: tiene que
+// ser el link "Download build" (expo.dev/artifacts/eas/....apk) que sale en
+// el menú ⋮ del build en expo.dev, o el "Application Archive URL" de
+// `eas build:view <id>`. El link de la página del build pide iniciar sesión
+// en Expo y a los demás les sale "Account not found".
+// Cada build nuevo: pego aquí (o en EXPO_PUBLIC_APK_URL de .env.local) el
+// link nuevo y vuelvo a publicar la web con npm run deploy:web.
 export const URL_APK =
   process.env.EXPO_PUBLIC_APK_URL ||
-  "https://expo.dev/accounts/pediatritrack/projects/PediatriTrackGlobal/builds/322ede93-9c82-4b13-a19d-e7c05e468cbb";
+  "https://expo.dev/artifacts/eas/ynujCDtSdqhJb2P2WWDZtvrNDbBa4nYdCKKzL3bWIxs.apk";
