@@ -7,4 +7,4 @@
 // "Descargar para Android" de la versión web siempre lleva al último APK.
 export const URL_APK =
   process.env.EXPO_PUBLIC_APK_URL ||
-  "https://expo.dev/accounts/pediatritrack/projects/PediatriTrackGlobal/builds/fa63aa47-4abd-4840-b5cd-eb3e607c795b";
+  "https://expo.dev/accounts/pediatritrack/projects/PediatriTrackGlobal/builds/322ede93-9c82-4b13-a19d-e7c05e468cbb";
