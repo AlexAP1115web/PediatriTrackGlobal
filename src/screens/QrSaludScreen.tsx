@@ -11,6 +11,8 @@ import {
   View,
 } from "react-native";
 
+import Aparecer from "../components/Aparecer";
+import EncabezadoModulo from "../components/EncabezadoModulo";
 import BottomNav from "../components/BottomNav";
 import CodigoQR from "../components/CodigoQR";
 import {
@@ -352,16 +354,15 @@ export default function QrSaludScreen({ onGo }: Props) {
   return (
     <View style={globalStyles.screen}>
       <ScrollView style={globalStyles.container} showsVerticalScrollIndicator={false}>
-        <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title} accessibilityRole="header">
-            📲 QR de salud
-          </Text>
-          <Text style={globalStyles.subtitle}>
-            Llena los datos antes de la consulta o arma la ficha para viajar.
-            La app crea un código QR: el pediatra lo escanea con su celular y ve
-            todo sin que tengas que repetirlo.
-          </Text>
-        </View>
+        <EncabezadoModulo
+          icono="📲"
+          titulo="QR de salud"
+          etiqueta="Nuevo"
+          tono="turquesa"
+          subtitulo="Llena los datos antes de la consulta o arma la ficha para viajar. El pediatra escanea el QR y ve todo sin que lo repitas."
+        />
+
+        <Aparecer retraso={150}>
 
         {cargando ? (
           <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 30 }} />
@@ -689,6 +690,7 @@ export default function QrSaludScreen({ onGo }: Props) {
           </>
         )}
 
+        </Aparecer>
         <View style={globalStyles.bottomSpace} />
       </ScrollView>
 

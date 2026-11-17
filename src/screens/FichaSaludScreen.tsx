@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 
+import EncabezadoModulo from "../components/EncabezadoModulo";
 import { FichaSalud, obtenerFichaFirebase } from "../firebase/firebaseService";
 import { colors, globalStyles } from "../styles/globalStyles";
 
@@ -148,16 +149,17 @@ export default function FichaSaludScreen({ token, onCerrar, textoCerrar }: Props
   return (
     <View style={globalStyles.screen}>
       <ScrollView style={globalStyles.container} showsVerticalScrollIndicator={false}>
-        <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title} accessibilityRole="header">
-            {esViaje ? "✈️ Ficha de viaje" : "🩺 Pre-consulta"}
-          </Text>
-          <Text style={globalStyles.subtitle}>
-            {esViaje
-              ? "Travel health card · Datos de salud del bebé para emergencias durante el viaje."
-              : "Información que la familia llenó antes de la consulta."}
-          </Text>
-        </View>
+        <EncabezadoModulo
+          icono={esViaje ? "✈️" : "🩺"}
+          titulo={esViaje ? "Ficha de viaje" : "Pre-consulta"}
+          etiqueta={esViaje ? "Travel health card" : "PediatriTrack Global"}
+          tono="turquesa"
+          subtitulo={
+            esViaje
+              ? "Datos de salud del bebé para emergencias durante el viaje."
+              : "Información que la familia llenó antes de la consulta."
+          }
+        />
 
         {tieneAlergias ? (
           <View style={globalStyles.fichaAlerta} accessibilityRole="alert">

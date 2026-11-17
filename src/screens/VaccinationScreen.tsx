@@ -8,6 +8,8 @@ import {
   View,
 } from "react-native";
 
+import Aparecer from "../components/Aparecer";
+import EncabezadoModulo from "../components/EncabezadoModulo";
 import AyudaModulo from "../components/AyudaModulo";
 import BottomNav from "../components/BottomNav";
 import { auth } from "../firebase/firebaseConfig";
@@ -639,15 +641,15 @@ export default function VaccinationScreen({ onGo }: Props) {
           </TouchableOpacity>
         </View>
 
-        <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title} accessibilityRole="header">💉 Sistema de Vacunación</Text>
+        <EncabezadoModulo
+          icono="💉"
+          titulo="Vacunación"
+          etiqueta="Esquema de 0 a 6 años"
+          tono="azul"
+          subtitulo="Todas las vacunas de México o Estados Unidos ordenadas por edad. Toca una para ver qué protege y registrarla."
+        />
 
-          <Text style={globalStyles.subtitle}>
-            Todas las vacunas de los 0 a los 6 años del esquema de México o
-            Estados Unidos, ordenadas por edad. Toca una vacuna para ver qué
-            protege y registrarla.
-          </Text>
-        </View>
+        <Aparecer retraso={150}>
 
         {/* ayuda con IA: explica cómo funciona este módulo */}
         <AyudaModulo modulo="vacunas" />
@@ -1103,6 +1105,7 @@ export default function VaccinationScreen({ onGo }: Props) {
           </Text>
         </View>
 
+        </Aparecer>
         <View style={globalStyles.bottomSpace} />
       </ScrollView>
 

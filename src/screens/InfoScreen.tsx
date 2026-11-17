@@ -1,4 +1,6 @@
 import { ScrollView, Text, View } from "react-native";
+import Aparecer from "../components/Aparecer";
+import EncabezadoModulo from "../components/EncabezadoModulo";
 import AyudaModulo from "../components/AyudaModulo";
 import BottomNav from "../components/BottomNav";
 import { globalStyles } from "../styles/globalStyles";
@@ -15,16 +17,15 @@ export default function InfoScreen({ onGo }: Props) {
         showsVerticalScrollIndicator={false}
       >
         {/* encabezado */}
-        <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title} accessibilityRole="header">
-            ℹ️ Información Pediátrica
-          </Text>
+        <EncabezadoModulo
+          icono="🩺"
+          titulo="Información pediátrica"
+          etiqueta="Guía rápida"
+          tono="rojo"
+          subtitulo="Primeros auxilios, fiebre, cuidados del día a día y señales para ir al médico."
+        />
 
-          <Text style={globalStyles.subtitle}>
-            Información basada en recomendaciones pediátricas
-            internacionales para apoyar el cuidado diario del bebé.
-          </Text>
-        </View>
+        <Aparecer retraso={150}>
 
         {/* ayuda con IA: explica cómo funciona este módulo */}
         <AyudaModulo modulo="info" />
@@ -240,6 +241,7 @@ export default function InfoScreen({ onGo }: Props) {
           </Text>
         </View>
 
+        </Aparecer>
         <View style={globalStyles.bottomSpace} />
       </ScrollView>
 

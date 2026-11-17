@@ -351,7 +351,9 @@ function crearEstilos(colors: Paleta, escala: number) {
       flex: 1,
       backgroundColor: colors.white,
       padding: 14,
-      borderRadius: 18,
+      borderRadius: 20,
+      borderTopWidth: 4,
+      borderTopColor: colors.primary,
       alignItems: "center",
       marginRight: 8,
       borderWidth: 1,
@@ -360,9 +362,9 @@ function crearEstilos(colors: Paleta, escala: number) {
     },
 
     summaryNumber: {
-      fontSize: t(24),
+      fontSize: t(26),
       fontWeight: "900",
-      color: colors.primary,
+      color: colors.primaryDark,
     },
 
     summaryText: {
@@ -817,8 +819,10 @@ function crearEstilos(colors: Paleta, escala: number) {
     formCard: {
       backgroundColor: colors.white,
       padding: 18,
-      borderRadius: 22,
+      borderRadius: 24,
       marginBottom: 22,
+      borderWidth: 1,
+      borderColor: colors.border,
       ...sombraSuave,
     },
 
@@ -1274,6 +1278,96 @@ function crearEstilos(colors: Paleta, escala: number) {
       color: colors.muted,
       marginTop: 18,
       fontSize: t(12),
+    },
+
+    // ==========================
+    // ENCABEZADO DE COLOR DE CADA MÓDULO
+    // ==========================
+    encabezado: {
+      borderRadius: 28,
+      padding: 20,
+      paddingBottom: 22,
+      marginBottom: 16,
+      overflow: "hidden",
+      ...sombraSuave,
+    },
+    encabezadoCirculoGrande: {
+      position: "absolute",
+      width: 170,
+      height: 170,
+      borderRadius: 85,
+      right: -50,
+      top: -60,
+      opacity: 0.35,
+    },
+    encabezadoCirculoChico: {
+      position: "absolute",
+      width: 70,
+      height: 70,
+      borderRadius: 35,
+      borderWidth: 10,
+      right: 70,
+      bottom: -34,
+      opacity: 0.35,
+    },
+    encabezadoVolver: {
+      alignSelf: "flex-start",
+      backgroundColor: "rgba(255,255,255,0.18)",
+      borderRadius: 14,
+      paddingVertical: 5,
+      paddingHorizontal: 11,
+      marginBottom: 12,
+    },
+    encabezadoVolverTexto: {
+      color: "#FFFFFF",
+      fontWeight: "800",
+      fontSize: t(12),
+    },
+    encabezadoFila: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    encabezadoIcono: {
+      width: 58,
+      height: 58,
+      borderRadius: 18,
+      backgroundColor: "#FFFFFF",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 14,
+      ...sombraTenue,
+    },
+    encabezadoIconoTexto: {
+      fontSize: 30,
+    },
+    encabezadoEtiqueta: {
+      color: "rgba(255,255,255,0.8)",
+      fontWeight: "900",
+      fontSize: t(10),
+      letterSpacing: 1.4,
+      textTransform: "uppercase",
+      marginBottom: 2,
+    },
+    encabezadoTitulo: {
+      color: "#FFFFFF",
+      fontWeight: "900",
+      fontSize: t(25),
+      lineHeight: t(30),
+      letterSpacing: -0.3,
+    },
+    encabezadoSubtitulo: {
+      color: "rgba(255,255,255,0.92)",
+      fontWeight: "600",
+      fontSize: t(13.5),
+      lineHeight: t(20),
+      marginTop: 12,
+    },
+    bottomNavRayita: {
+      width: 18,
+      height: 3,
+      borderRadius: 2,
+      backgroundColor: colors.primary,
+      marginTop: 3,
     },
 
     // ==========================

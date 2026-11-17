@@ -7,6 +7,8 @@ import {
   View,
 } from "react-native";
 
+import Aparecer from "../components/Aparecer";
+import EncabezadoModulo from "../components/EncabezadoModulo";
 import AyudaModulo from "../components/AyudaModulo";
 import BottomNav from "../components/BottomNav";
 import {
@@ -326,14 +328,15 @@ export default function VitaminsScreen({ onGo }: Props) {
         style={globalStyles.container}
         showsVerticalScrollIndicator={false}
       >
-        <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title} accessibilityRole="header">💊 Vitaminación</Text>
+        <EncabezadoModulo
+          icono="💊"
+          titulo="Vitaminación"
+          etiqueta="Suplementos"
+          tono="ambar"
+          subtitulo="Dosis, horarios y recordatorios de las vitaminas de tu bebé, para que ninguna toma se te pase."
+        />
 
-          <Text style={globalStyles.subtitle}>
-            Panel para registrar vitaminas, dosis, frecuencia y duración,
-            con recordatorios de tomas pendientes y completadas.
-          </Text>
-        </View>
+        <Aparecer retraso={150}>
 
         {/* ayuda con IA: explica cómo funciona este módulo */}
         <AyudaModulo modulo="vitaminas" />
@@ -644,6 +647,7 @@ export default function VitaminsScreen({ onGo }: Props) {
           </Text>
         </View>
 
+        </Aparecer>
         <View style={globalStyles.bottomSpace} />
       </ScrollView>
 

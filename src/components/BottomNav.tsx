@@ -1,207 +1,68 @@
-import { Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, Platform, Text, TouchableOpacity, View } from "react-native";
+
 import { globalStyles } from "../styles/globalStyles";
+import { sinMovimiento } from "../utils/movimiento";
 
 type Props = {
   onGo: (screen: string) => void;
   active: string;
 };
 
-export default function BottomNav({
-  onGo,
-  active,
-}: Props) {
+const NATIVO = Platform.OS !== "web";
+
+const PESTANAS = [
+  { ruta: "dashboard", icono: "💉", texto: "Vacunas", pista: "Ir al panel de vacunación" },
+  { ruta: "vitaminas", icono: "💊", texto: "Vitaminas", pista: "Ir al panel de vitaminación" },
+  { ruta: "documentos", icono: "📄", texto: "Docs", pista: "Ir a documentos médicos" },
+  { ruta: "alimentacion", icono: "🍎", texto: "Comida", pista: "Ir a alimentación complementaria" },
+  { ruta: "info", icono: "ℹ️", texto: "Info", pista: "Ir a información pediátrica" },
+];
+
+// barra de abajo. La pestaña activa "brinca" un poquito al llegar a la
+// pantalla y lleva una rayita de color debajo
+export default function BottomNav({ onGo, active }: Props) {
+  const quieto = sinMovimiento();
+  const rebote = useRef(new Animated.Value(quieto ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (quieto) return;
+    Animated.spring(rebote, { toValue: 1, friction: 4, tension: 120, useNativeDriver: NATIVO }).start();
+  }, []);
+
   return (
-    <View
-      style={globalStyles.bottomNav}
-      accessibilityRole="tablist"
-      accessibilityLabel="Navegación principal"
-    >
-
-      {/* Vacunas */}
-      <TouchableOpacity
-        style={globalStyles.bottomNavItem}
-        onPress={() => onGo("dashboard")}
-        accessibilityRole="tab"
-        accessibilityLabel="Vacunas"
-        accessibilityHint="Ir al panel de vacunación"
-        accessibilityState={{ selected: active === "dashboard" }}
-      >
-        <View
-          style={[
-            globalStyles.bottomNavIconWrap,
-            active === "dashboard" && globalStyles.bottomNavIconWrapActive,
-          ]}
-        >
-          <Text
-            style={[
-              globalStyles.bottomNavText,
-              active === "dashboard" &&
-                globalStyles.bottomNavActive,
-            ]}
+    <View style={globalStyles.bottomNav} accessibilityRole="tablist" accessibilityLabel="Navegación principal">
+      {PESTANAS.map((p) => {
+        const activa = active === p.ruta;
+        return (
+          <TouchableOpacity
+            key={p.ruta}
+            style={globalStyles.bottomNavItem}
+            onPress={() => onGo(p.ruta)}
+            accessibilityRole="tab"
+            accessibilityLabel={p.texto === "Docs" ? "Documentos" : p.texto}
+            accessibilityHint={p.pista}
+            accessibilityState={{ selected: activa }}
           >
-            💉
-          </Text>
-        </View>
-
-        <Text
-          style={[
-            globalStyles.bottomNavLabel,
-            active === "dashboard" &&
-              globalStyles.bottomNavActive,
-          ]}
-        >
-          Vacunas
-        </Text>
-      </TouchableOpacity>
-
-      {/* Vitaminas */}
-      <TouchableOpacity
-        style={globalStyles.bottomNavItem}
-        onPress={() => onGo("vitaminas")}
-        accessibilityRole="tab"
-        accessibilityLabel="Vitaminas"
-        accessibilityHint="Ir al panel de vitaminación"
-        accessibilityState={{ selected: active === "vitaminas" }}
-      >
-        <View
-          style={[
-            globalStyles.bottomNavIconWrap,
-            active === "vitaminas" && globalStyles.bottomNavIconWrapActive,
-          ]}
-        >
-          <Text
-            style={[
-              globalStyles.bottomNavText,
-              active === "vitaminas" &&
-                globalStyles.bottomNavActive,
-            ]}
-          >
-            💊
-          </Text>
-        </View>
-
-        <Text
-          style={[
-            globalStyles.bottomNavLabel,
-            active === "vitaminas" &&
-              globalStyles.bottomNavActive,
-          ]}
-        >
-          Vitaminas
-        </Text>
-      </TouchableOpacity>
-
-      {/* Documentos */}
-      <TouchableOpacity
-        style={globalStyles.bottomNavItem}
-        onPress={() => onGo("documentos")}
-        accessibilityRole="tab"
-        accessibilityLabel="Documentos"
-        accessibilityHint="Ir al panel de documentos médicos"
-        accessibilityState={{ selected: active === "documentos" }}
-      >
-        <View
-          style={[
-            globalStyles.bottomNavIconWrap,
-            active === "documentos" && globalStyles.bottomNavIconWrapActive,
-          ]}
-        >
-          <Text
-            style={[
-              globalStyles.bottomNavText,
-              active === "documentos" &&
-                globalStyles.bottomNavActive,
-            ]}
-          >
-            📄
-          </Text>
-        </View>
-
-        <Text
-          style={[
-            globalStyles.bottomNavLabel,
-            active === "documentos" &&
-              globalStyles.bottomNavActive,
-          ]}
-        >
-          Docs
-        </Text>
-      </TouchableOpacity>
-
-      {/* Alimentación */}
-      <TouchableOpacity
-        style={globalStyles.bottomNavItem}
-        onPress={() => onGo("alimentacion")}
-        accessibilityRole="tab"
-        accessibilityLabel="Alimentación"
-        accessibilityHint="Ir al panel de alimentación complementaria"
-        accessibilityState={{ selected: active === "alimentacion" }}
-      >
-        <View
-          style={[
-            globalStyles.bottomNavIconWrap,
-            active === "alimentacion" && globalStyles.bottomNavIconWrapActive,
-          ]}
-        >
-          <Text
-            style={[
-              globalStyles.bottomNavText,
-              active === "alimentacion" &&
-                globalStyles.bottomNavActive,
-            ]}
-          >
-            🍎
-          </Text>
-        </View>
-
-        <Text
-          style={[
-            globalStyles.bottomNavLabel,
-            active === "alimentacion" &&
-              globalStyles.bottomNavActive,
-          ]}
-        >
-          Comida
-        </Text>
-      </TouchableOpacity>
-
-      {/* Información */}
-      <TouchableOpacity
-        style={globalStyles.bottomNavItem}
-        onPress={() => onGo("info")}
-        accessibilityRole="tab"
-        accessibilityLabel="Información"
-        accessibilityHint="Ir al panel de información pediátrica"
-        accessibilityState={{ selected: active === "info" }}
-      >
-        <View
-          style={[
-            globalStyles.bottomNavIconWrap,
-            active === "info" && globalStyles.bottomNavIconWrapActive,
-          ]}
-        >
-          <Text
-            style={[
-              globalStyles.bottomNavText,
-              active === "info" &&
-                globalStyles.bottomNavActive,
-            ]}
-          >
-            ℹ️
-          </Text>
-        </View>
-
-        <Text
-          style={[
-            globalStyles.bottomNavLabel,
-            active === "info" &&
-              globalStyles.bottomNavActive,
-          ]}
-        >
-          Info
-        </Text>
-      </TouchableOpacity>
-
+            <Animated.View
+              style={[
+                globalStyles.bottomNavIconWrap,
+                activa && globalStyles.bottomNavIconWrapActive,
+                activa && {
+                  transform: [
+                    { scale: rebote.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] }) },
+                    { translateY: rebote.interpolate({ inputRange: [0, 1], outputRange: [6, 0] }) },
+                  ],
+                },
+              ]}
+            >
+              <Text style={[globalStyles.bottomNavText, activa && globalStyles.bottomNavActive]}>{p.icono}</Text>
+            </Animated.View>
+            <Text style={[globalStyles.bottomNavLabel, activa && globalStyles.bottomNavActive]}>{p.texto}</Text>
+            {activa && <View style={globalStyles.bottomNavRayita} />}
+          </TouchableOpacity>
+        );
+      })}
     </View>
   );
 }

@@ -1,4 +1,6 @@
 import { ScrollView, Text, View } from "react-native";
+import Aparecer from "../components/Aparecer";
+import EncabezadoModulo from "../components/EncabezadoModulo";
 import BottomNav from "../components/BottomNav";
 import { globalStyles } from "../styles/globalStyles";
 
@@ -14,15 +16,15 @@ export default function PrivacyPolicyScreen({ onGo }: Props) {
         showsVerticalScrollIndicator={false}
       >
         {/* encabezado */}
-        <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title} accessibilityRole="header">🔒 Política de Privacidad</Text>
+        <EncabezadoModulo
+          icono="🔒"
+          titulo="Política de privacidad"
+          etiqueta="Tus datos"
+          tono="gris"
+          subtitulo="Qué datos guardamos, para qué los usamos y cómo los protegemos."
+        />
 
-          <Text style={globalStyles.subtitle}>
-            PediatriTrack Global protege la información de tu bebé y de tu
-            cuenta. Aquí explicamos qué datos recopilamos, cómo se usan y
-            cómo se resguardan.
-          </Text>
-        </View>
+        <Aparecer retraso={150}>
 
         {/* datos que recopilamos */}
         <Text style={globalStyles.sectionTitle} accessibilityRole="header">
@@ -184,6 +186,7 @@ export default function PrivacyPolicyScreen({ onGo }: Props) {
           </Text>
         </View>
 
+        </Aparecer>
         <View style={globalStyles.bottomSpace} />
       </ScrollView>
 

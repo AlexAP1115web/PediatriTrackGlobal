@@ -7,6 +7,8 @@ import {
   View,
 } from "react-native";
 
+import Aparecer from "../components/Aparecer";
+import EncabezadoModulo from "../components/EncabezadoModulo";
 import AyudaModulo from "../components/AyudaModulo";
 import BottomNav from "../components/BottomNav";
 import {
@@ -289,14 +291,15 @@ export default function FoodScreen({ onGo }: Props) {
         style={globalStyles.container}
         showsVerticalScrollIndicator={false}
       >
-        <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title} accessibilityRole="header">🍎 Alimentación Complementaria</Text>
+        <EncabezadoModulo
+          icono="🍎"
+          titulo="Alimentación complementaria"
+          etiqueta="Nutrición"
+          tono="verde"
+          subtitulo="Qué puede comer según su edad y en qué textura, cuidando siempre sus alergias."
+        />
 
-          <Text style={globalStyles.subtitle}>
-            Panel para registrar alimentos por edad, textura y alergias
-            alimentarias del bebé.
-          </Text>
-        </View>
+        <Aparecer retraso={150}>
 
         {/* ayuda con IA: explica cómo funciona este módulo */}
         <AyudaModulo modulo="alimentacion" />
@@ -579,6 +582,7 @@ export default function FoodScreen({ onGo }: Props) {
           </Text>
         </View>
 
+        </Aparecer>
         <View style={globalStyles.bottomSpace} />
       </ScrollView>
 

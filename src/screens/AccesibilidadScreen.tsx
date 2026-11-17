@@ -1,8 +1,8 @@
 import { ReactNode, useEffect, useRef } from "react";
 import { ScrollView, Switch, Text, TouchableOpacity, View } from "react-native";
 
+import EncabezadoModulo from "../components/EncabezadoModulo";
 import BottomNav from "../components/BottomNav";
-import MascotaRobot from "../components/MascotaRobot";
 import { useAccesibilidad } from "../context/AccesibilidadContext";
 import {
   colors,
@@ -128,31 +128,18 @@ export default function AccesibilidadScreen({ onGo }: Props) {
         }}
         scrollEventThrottle={100}
       >
-        <View style={globalStyles.headerCard}>
-          <TouchableOpacity
-            onPress={() => {
-              ultimoScroll = 0;
-              onGo("dashboard");
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Volver al inicio"
-          >
-            <Text style={globalStyles.privacyLinkText}>← Volver al inicio</Text>
-          </TouchableOpacity>
-
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginTop: 8 }}>
-            <MascotaRobot tamano={56} estado="saludando" />
-            <View style={{ flex: 1 }}>
-              <Text style={globalStyles.title} accessibilityRole="header">
-                Accesibilidad
-              </Text>
-              <Text style={[globalStyles.subtitle, { marginTop: 4 }]}>
-                Ajusta la app para que te sea cómoda de ver, de leer y de usar.
-                Los cambios se guardan en este dispositivo.
-              </Text>
-            </View>
-          </View>
-        </View>
+        <EncabezadoModulo
+          icono="♿"
+          titulo="Accesibilidad"
+          etiqueta="Para todos"
+          tono="morado"
+          subtitulo="Ajusta la app para que te sea cómoda de ver, de leer y de usar. Los cambios se guardan en este dispositivo."
+          animar={false}
+          onVolver={() => {
+            ultimoScroll = 0;
+            onGo("dashboard");
+          }}
+        />
 
         {/* ---------- colores ---------- */}
         <Text style={globalStyles.sectionTitle} accessibilityRole="header">

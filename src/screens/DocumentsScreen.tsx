@@ -9,6 +9,8 @@ import {
   View,
 } from "react-native";
 
+import Aparecer from "../components/Aparecer";
+import EncabezadoModulo from "../components/EncabezadoModulo";
 import AyudaModulo from "../components/AyudaModulo";
 import BottomNav from "../components/BottomNav";
 import {
@@ -309,14 +311,15 @@ export default function DocumentsScreen({ onGo }: Props) {
         style={globalStyles.container}
         showsVerticalScrollIndicator={false}
       >
-        <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title} accessibilityRole="header">📄 Documentos</Text>
+        <EncabezadoModulo
+          icono="📄"
+          titulo="Documentos"
+          etiqueta="Expediente"
+          tono="morado"
+          subtitulo="Acta, cartilla, consultas, estudios y recetas del bebé en PDF o Word, guardados en la nube."
+        />
 
-          <Text style={globalStyles.subtitle}>
-            Administra acta de nacimiento, cartilla de salud, estudios,
-            consultas, recetas y documentos médicos importantes del bebé.
-          </Text>
-        </View>
+        <Aparecer retraso={150}>
 
         {/* ayuda con IA: explica cómo funciona este módulo */}
         <AyudaModulo modulo="documentos" />
@@ -602,6 +605,7 @@ export default function DocumentsScreen({ onGo }: Props) {
           </Text>
         </View>
 
+        </Aparecer>
         <View style={globalStyles.bottomSpace} />
       </ScrollView>
 

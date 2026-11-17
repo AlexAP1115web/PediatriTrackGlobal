@@ -9,6 +9,8 @@ import {
   View,
 } from "react-native";
 
+import Aparecer from "../components/Aparecer";
+import EncabezadoModulo from "../components/EncabezadoModulo";
 import BottomNav from "../components/BottomNav";
 import { colors, globalStyles } from "../styles/globalStyles";
 import { tokenDeTexto } from "../utils/qr";
@@ -118,15 +120,15 @@ export default function EscanerQrScreen({ onGo }: Props) {
   return (
     <View style={globalStyles.screen}>
       <ScrollView style={globalStyles.container} showsVerticalScrollIndicator={false}>
-        <View style={globalStyles.headerCard}>
-          <Text style={globalStyles.title} accessibilityRole="header">
-            📷 Escanear QR
-          </Text>
-          <Text style={globalStyles.subtitle}>
-            Para el pediatra o personal de salud: apunta al QR que te enseña la
-            familia y verás su pre-consulta o su ficha de viaje.
-          </Text>
-        </View>
+        <EncabezadoModulo
+          icono="📷"
+          titulo="Escanear QR"
+          etiqueta="Para el pediatra"
+          tono="azul"
+          subtitulo="Apunta al QR que te enseña la familia y verás su pre-consulta o su ficha de viaje."
+        />
+
+        <Aparecer retraso={150}>
 
         <View style={globalStyles.qrCamaraCaja}>{camara()}</View>
 
@@ -153,6 +155,7 @@ export default function EscanerQrScreen({ onGo }: Props) {
           </TouchableOpacity>
         </View>
 
+        </Aparecer>
         <View style={globalStyles.bottomSpace} />
       </ScrollView>
 
