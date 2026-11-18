@@ -9,4 +9,4 @@
 // link nuevo y vuelvo a publicar la web con npm run deploy:web.
 export const URL_APK =
   process.env.EXPO_PUBLIC_APK_URL ||
-  "https://expo.dev/artifacts/eas/ynujCDtSdqhJb2P2WWDZtvrNDbBa4nYdCKKzL3bWIxs.apk";
+  "https://expo.dev/artifacts/eas/wEINkuK8Y9X_WCyHYbaIaM-tz_-kmYck2nbtc4CMRZc.apk";
