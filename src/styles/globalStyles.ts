@@ -1663,10 +1663,11 @@ function crearEstilos(colors: Paleta, escala: number) {
       paddingHorizontal: 12,
       marginBottom: 14,
     },
+    // sin sombra/elevación: en Android cambiarla al enfocar puede quitarle el
+    // foco al campo y cerrar el teclado
     lgCampoEnfocado: {
       borderColor: colors.primary,
       backgroundColor: colors.white,
-      ...sombraTenue,
     },
     lgCampoIcono: {
       fontSize: 17,

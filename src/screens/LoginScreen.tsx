@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
+  Dimensions,
   Easing,
   Image,
   KeyboardAvoidingView,
@@ -12,7 +13,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  useWindowDimensions,
   View,
 } from "react-native";
 
@@ -179,49 +179,32 @@ export default function LoginScreen({ onLogin }: Props) {
   const esCrear = modo === "crearCuenta";
 
   // ---------- diseño ----------
-  const { width } = useWindowDimensions();
   // en computadora (pantalla ancha) pongo la presentación a la izquierda y
   // el formulario a la derecha; en celular va todo en una columna
-  const ancho = width >= 900;
+  const ancho = useEsAncho();
   const quieto = sinMovimiento();
 
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [enfocado, setEnfocado] = useState<"correo" | "password" | null>(null);
   const [anchoPestanas, setAnchoPestanas] = useState(0);
 
-  // animaciones: entrada de la tarjeta, presentación, globito de Pedi,
-  // pestaña que se desliza, pulso del logo, figuritas flotando y el botón
+  // animaciones del formulario: entrada de la tarjeta, pestaña que se
+  // desliza y el botón. El fondo y la presentación van en componentes
+  // aparte (memo) para que NO se vuelvan a dibujar con cada letra que se
+  // escribe; en Android eso hacía que el teclado se cerrara solo.
   const entrada = useRef(new Animated.Value(quieto ? 1 : 0)).current;
-  const entradaHero = useRef(new Animated.Value(quieto ? 1 : 0)).current;
-  const globo = useRef(new Animated.Value(quieto ? 1 : 0)).current;
   const pestana = useRef(new Animated.Value(0)).current;
-  const pulso = useRef(new Animated.Value(0)).current;
-  const flotar = useRef(new Animated.Value(0)).current;
   const presion = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (quieto) return;
-    Animated.stagger(140, [
-      Animated.timing(entradaHero, { toValue: 1, duration: 650, easing: Easing.out(Easing.cubic), useNativeDriver: NATIVO }),
-      Animated.timing(entrada, { toValue: 1, duration: 700, easing: Easing.out(Easing.cubic), useNativeDriver: NATIVO }),
-      Animated.spring(globo, { toValue: 1, friction: 5, tension: 90, useNativeDriver: NATIVO }),
-    ]).start();
-    const bucles = [
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(pulso, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: NATIVO }),
-          Animated.timing(pulso, { toValue: 0, duration: 0, useNativeDriver: NATIVO }),
-        ])
-      ),
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(flotar, { toValue: 1, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVO }),
-          Animated.timing(flotar, { toValue: 0, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVO }),
-        ])
-      ),
-    ];
-    bucles.forEach((b) => b.start());
-    return () => bucles.forEach((b) => b.stop());
+    Animated.timing(entrada, {
+      toValue: 1,
+      duration: 700,
+      delay: 140,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: NATIVO,
+    }).start();
   }, []);
 
   // la pestaña blanca se desliza entre "Iniciar sesión" y "Crear cuenta"
@@ -239,99 +222,19 @@ export default function LoginScreen({ onLogin }: Props) {
     Animated.spring(presion, { toValue: valor, friction: 5, tension: 160, useNativeDriver: NATIVO }).start();
   };
 
-  const subir = (valor: Animated.Value, distancia = 26) => ({
-    opacity: valor,
-    transform: [{ translateY: valor.interpolate({ inputRange: [0, 1], outputRange: [distancia, 0] }) }],
-  });
-
-  const flotando = (fase: number, rango = 10) => ({
-    transform: [
-      {
-        translateY: flotar.interpolate({
-          inputRange: [0, 1],
-          outputRange: fase % 2 === 0 ? [0, -rango] : [-rango, 0],
-        }),
-      },
-    ],
-  });
-
-  // ---------- piezas ----------
-  const presentacion = (
-    <Animated.View style={[globalStyles.lgHero, ancho && globalStyles.lgHeroAncho, subir(entradaHero)]}>
-      <View style={[globalStyles.lgLogoZona, ancho && { alignSelf: "flex-start" }]}>
-        {!quieto && (
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              globalStyles.lgLogoPulso,
-              {
-                opacity: pulso.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] }),
-                transform: [{ scale: pulso.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] }) }],
-              },
-            ]}
-          />
-        )}
-        <View style={globalStyles.lgLogoInsignia}>
-          <Image
-            source={require("../../assets/images/logo-icon.png")}
-            style={globalStyles.lgLogoImagen}
-            resizeMode="contain"
-            accessibilityRole="image"
-            accessibilityLabel="Logo de PediatriTrack Global"
-          />
-        </View>
-      </View>
-
-      <Text style={[globalStyles.lgEyebrow, ancho && IZQUIERDA]}>
-        Seguimiento pediátrico inteligente
-      </Text>
-      <Text style={[globalStyles.lgTitulo, ancho && globalStyles.lgTituloAncho]} accessibilityRole="header">
-        PediatriTrack Global
-      </Text>
-      <Text style={[globalStyles.lgSubtitulo, ancho && IZQUIERDA]}>
-        Vacunas, vitaminas, comida y documentos de tu bebé en un solo lugar,
-        con un asistente con IA que te echa la mano.
-      </Text>
-
-      {/* Pedi saluda con su globito */}
-      <View style={[globalStyles.lgPediFila, ancho && { alignSelf: "flex-start" }]}>
-        <View style={ancho ? globalStyles.lgPediFondo : undefined}>
-          <MascotaRobot tamano={ancho ? 84 : 64} estado="saludando" />
-        </View>
-        <Animated.View
-          style={[
-            globalStyles.lgGlobo,
-            {
-              opacity: globo,
-              transform: [{ scale: globo.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }],
-            },
-          ]}
-        >
-          <Text style={globalStyles.lgGloboTexto}>
-            {esCrear ? "¡Bienvenido! Crea tu cuenta y empezamos 🎉" : "¡Hola! Soy Pedi 👋 ¿Le damos seguimiento a tu bebé?"}
-          </Text>
-        </Animated.View>
-      </View>
-
-      <View style={[globalStyles.lgChips, ancho && { justifyContent: "flex-start" }]}>
-        {[
-          ["💉", "Vacunas 0–6 años"],
-          ["📲", "QR de salud"],
-          ["🤖", "Asistente con IA"],
-          ["♿", "Accesible"],
-        ].map(([icono, texto], i) => (
-          <Animated.View key={texto} style={[globalStyles.lgChip, !ancho && globalStyles.lgChipClaro, !quieto && flotando(i, 4)]}>
-            <Text style={[globalStyles.lgChipTexto, !ancho && globalStyles.lgChipTextoClaro]}>
-              {icono} {texto}
-            </Text>
-          </Animated.View>
-        ))}
-      </View>
-    </Animated.View>
-  );
+  // los estilos animados se crean una sola vez (no en cada letra)
+  const estiloTarjeta = useMemo(() => subir(entrada, 40), []);
+  const estiloBoton = useMemo(() => ({ transform: [{ scale: presion }] }), []);
+  const estiloIndicador = useMemo(() => {
+    const mitad = (anchoPestanas - 8) / 2;
+    return {
+      width: mitad,
+      transform: [{ translateX: pestana.interpolate({ inputRange: [0, 1], outputRange: [0, mitad] }) }],
+    };
+  }, [anchoPestanas]);
 
   const formulario = (
-    <Animated.View style={[globalStyles.lgTarjeta, ancho && globalStyles.lgTarjetaAncho, subir(entrada, 40)]}>
+    <Animated.View style={[globalStyles.lgTarjeta, ancho && globalStyles.lgTarjetaAncho, estiloTarjeta]}>
       {/* pestañas con indicador que se desliza */}
       <View
         style={globalStyles.lgPestanas}
@@ -344,14 +247,7 @@ export default function LoginScreen({ onLogin }: Props) {
             pointerEvents="none"
             style={[
               globalStyles.lgPestanaIndicador,
-              {
-                width: (anchoPestanas - 8) / 2,
-                transform: [
-                  {
-                    translateX: pestana.interpolate({ inputRange: [0, 1], outputRange: [0, (anchoPestanas - 8) / 2] }),
-                  },
-                ],
-              },
+              estiloIndicador,
             ]}
           />
         )}
@@ -470,7 +366,7 @@ export default function LoginScreen({ onLogin }: Props) {
         </TouchableOpacity>
       )}
 
-      <Animated.View style={{ transform: [{ scale: presion }] }}>
+      <Animated.View style={estiloBoton}>
         <Pressable
           style={[globalStyles.lgBoton, cargando && { opacity: 0.75 }]}
           onPress={continuar}
@@ -512,36 +408,196 @@ export default function LoginScreen({ onLogin }: Props) {
 
   return (
     <KeyboardAvoidingView style={globalStyles.lgPantalla} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-      {/* fondo: manchas de color suaves y figuritas que flotan */}
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <View style={[globalStyles.lgFondoArriba, ancho && globalStyles.lgFondoArribaAncho]} />
-        <Animated.View style={[globalStyles.lgMancha, globalStyles.lgManchaRosa, !quieto && flotando(1, 18)]} />
-        <Animated.View style={[globalStyles.lgMancha, globalStyles.lgManchaCielo, !quieto && flotando(0, 22)]} />
-        {[
-          { icono: "🍼", top: "9%", left: "6%" },
-          { icono: "⭐", top: "6%", left: "82%" },
-          { icono: "💉", top: "30%", left: "90%" },
-          { icono: "🧸", top: "78%", left: "4%" },
-          { icono: "🍎", top: "88%", left: "86%" },
-          { icono: "💊", top: "52%", left: "2%" },
-        ].map((f, i) => (
-          <Animated.Text
-            key={f.icono}
-            style={[globalStyles.lgFigura, { top: f.top as any, left: f.left as any }, !quieto && flotando(i, 14)]}
-          >
-            {f.icono}
-          </Animated.Text>
-        ))}
-      </View>
+      <FondoLogin ancho={ancho} />
 
       <ScrollView
         contentContainerStyle={[globalStyles.lgContenido, ancho && globalStyles.lgContenidoAncho]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {presentacion}
+        <PresentacionLogin ancho={ancho} esCrear={esCrear} />
         {formulario}
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Piezas del login que NO dependen de lo que se escribe. Van con memo para
+// que no se redibujen con cada letra (en Android, redibujarlas mientras el
+// teclado está abierto lo cerraba).
+// ---------------------------------------------------------------------------
+
+// ancho de pantalla: solo cambia el estado cuando se cruza el límite de
+// 900 px. Así, cuando el teclado de Android cambia el alto de la ventana,
+// la pantalla no se vuelve a dibujar.
+function useEsAncho() {
+  const [ancho, setAncho] = useState(() => Dimensions.get("window").width >= 900);
+  useEffect(() => {
+    const sub = Dimensions.addEventListener("change", ({ window }) => {
+      const nuevo = window.width >= 900;
+      setAncho((anterior) => (anterior === nuevo ? anterior : nuevo));
+    });
+    return () => sub.remove();
+  }, []);
+  return ancho;
+}
+
+function subir(valor: Animated.Value, distancia = 26) {
+  return {
+    opacity: valor,
+    transform: [{ translateY: valor.interpolate({ inputRange: [0, 1], outputRange: [distancia, 0] }) }],
+  };
+}
+
+function useFlotar(quieto: boolean) {
+  const flotar = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (quieto) return;
+    const bucle = Animated.loop(
+      Animated.sequence([
+        Animated.timing(flotar, { toValue: 1, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVO }),
+        Animated.timing(flotar, { toValue: 0, duration: 3200, easing: Easing.inOut(Easing.sin), useNativeDriver: NATIVO }),
+      ])
+    );
+    bucle.start();
+    return () => bucle.stop();
+  }, []);
+  return (fase: number, rango = 10) => ({
+    transform: [
+      {
+        translateY: flotar.interpolate({
+          inputRange: [0, 1],
+          outputRange: fase % 2 === 0 ? [0, -rango] : [-rango, 0],
+        }),
+      },
+    ],
+  });
+}
+
+const FIGURAS = [
+  { icono: "🍼", top: "9%", left: "6%" },
+  { icono: "⭐", top: "6%", left: "82%" },
+  { icono: "💉", top: "30%", left: "90%" },
+  { icono: "🧸", top: "78%", left: "4%" },
+  { icono: "🍎", top: "88%", left: "86%" },
+  { icono: "💊", top: "52%", left: "2%" },
+];
+
+const FondoLogin = memo(function FondoLogin({ ancho }: { ancho: boolean }) {
+  const quieto = sinMovimiento();
+  const flotando = useFlotar(quieto);
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <View style={[globalStyles.lgFondoArriba, ancho && globalStyles.lgFondoArribaAncho]} />
+      <Animated.View style={[globalStyles.lgMancha, globalStyles.lgManchaRosa, !quieto && flotando(1, 18)]} />
+      <Animated.View style={[globalStyles.lgMancha, globalStyles.lgManchaCielo, !quieto && flotando(0, 22)]} />
+      {FIGURAS.map((f, i) => (
+        <Animated.Text
+          key={f.icono}
+          style={[globalStyles.lgFigura, { top: f.top as any, left: f.left as any }, !quieto && flotando(i, 14)]}
+        >
+          {f.icono}
+        </Animated.Text>
+      ))}
+    </View>
+  );
+});
+
+const PresentacionLogin = memo(function PresentacionLogin({ ancho, esCrear }: { ancho: boolean; esCrear: boolean }) {
+  const quieto = sinMovimiento();
+  const flotando = useFlotar(quieto);
+  const entradaHero = useRef(new Animated.Value(quieto ? 1 : 0)).current;
+  const globo = useRef(new Animated.Value(quieto ? 1 : 0)).current;
+  const pulso = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (quieto) return;
+    Animated.sequence([
+      Animated.timing(entradaHero, { toValue: 1, duration: 650, easing: Easing.out(Easing.cubic), useNativeDriver: NATIVO }),
+      Animated.spring(globo, { toValue: 1, friction: 5, tension: 90, useNativeDriver: NATIVO }),
+    ]).start();
+    const bucle = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulso, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: NATIVO }),
+        Animated.timing(pulso, { toValue: 0, duration: 0, useNativeDriver: NATIVO }),
+      ])
+    );
+    bucle.start();
+    return () => bucle.stop();
+  }, []);
+
+  return (
+    <Animated.View style={[globalStyles.lgHero, ancho && globalStyles.lgHeroAncho, subir(entradaHero)]}>
+      <View style={[globalStyles.lgLogoZona, ancho && { alignSelf: "flex-start" }]}>
+        {!quieto && (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              globalStyles.lgLogoPulso,
+              {
+                opacity: pulso.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0] }),
+                transform: [{ scale: pulso.interpolate({ inputRange: [0, 1], outputRange: [1, 1.6] }) }],
+              },
+            ]}
+          />
+        )}
+        <View style={globalStyles.lgLogoInsignia}>
+          <Image
+            source={require("../../assets/images/logo-icon.png")}
+            style={globalStyles.lgLogoImagen}
+            resizeMode="contain"
+            accessibilityRole="image"
+            accessibilityLabel="Logo de PediatriTrack Global"
+          />
+        </View>
+      </View>
+
+      <Text style={[globalStyles.lgEyebrow, ancho && IZQUIERDA]}>
+        Seguimiento pediátrico inteligente
+      </Text>
+      <Text style={[globalStyles.lgTitulo, ancho && globalStyles.lgTituloAncho]} accessibilityRole="header">
+        PediatriTrack Global
+      </Text>
+      <Text style={[globalStyles.lgSubtitulo, ancho && IZQUIERDA]}>
+        Vacunas, vitaminas, comida y documentos de tu bebé en un solo lugar,
+        con un asistente con IA que te echa la mano.
+      </Text>
+
+      {/* Pedi saluda con su globito */}
+      <View style={[globalStyles.lgPediFila, ancho && { alignSelf: "flex-start" }]}>
+        <View style={ancho ? globalStyles.lgPediFondo : undefined}>
+          <MascotaRobot tamano={ancho ? 84 : 64} estado="saludando" />
+        </View>
+        <Animated.View
+          style={[
+            globalStyles.lgGlobo,
+            {
+              opacity: globo,
+              transform: [{ scale: globo.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }],
+            },
+          ]}
+        >
+          <Text style={globalStyles.lgGloboTexto}>
+            {esCrear ? "¡Bienvenido! Crea tu cuenta y empezamos 🎉" : "¡Hola! Soy Pedi 👋 ¿Le damos seguimiento a tu bebé?"}
+          </Text>
+        </Animated.View>
+      </View>
+
+      <View style={[globalStyles.lgChips, ancho && { justifyContent: "flex-start" }]}>
+        {[
+          ["💉", "Vacunas 0–6 años"],
+          ["📲", "QR de salud"],
+          ["🤖", "Asistente con IA"],
+          ["♿", "Accesible"],
+        ].map(([icono, texto], i) => (
+          <Animated.View key={texto} style={[globalStyles.lgChip, !ancho && globalStyles.lgChipClaro, !quieto && flotando(i, 4)]}>
+            <Text style={[globalStyles.lgChipTexto, !ancho && globalStyles.lgChipTextoClaro]}>
+              {icono} {texto}
+            </Text>
+          </Animated.View>
+        ))}
+      </View>
+    </Animated.View>
+  );
+});
